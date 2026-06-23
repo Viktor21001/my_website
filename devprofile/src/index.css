@@ -1,0 +1,96 @@
+/* Подключаем Tailwind — даёт все утилитарные классы */
+@import "tailwindcss";
+
+/*
+  CSS переменные — наша дизайн-система в стиле Steam.
+  Почему переменные а не просто цвета хардкодом?
+  Потому что когда добавим смену тем — поменяем значения
+  в одном месте и всё обновится автоматически.
+*/
+:root {
+  /* Фоны — от тёмного к светлому */
+  --dp-bg-page:         #1b2838; /* весь фон страницы */
+  --dp-bg-panel:        #16202d; /* боковые панели */
+  --dp-bg-card:         #1e2a3a; /* карточки */
+  --dp-bg-hover:        #253447; /* hover состояние */
+
+  /* Границы */
+  --dp-border:          #2a475e; /* обычные */
+  --dp-border-light:    #4a7299; /* акцентные */
+
+  /* Текст */
+  --dp-text-primary:    #c6d4df; /* основной */
+  --dp-text-secondary:  #7ea3bf; /* подписи и лейблы */
+  --dp-text-muted:      #4a6f8a; /* неактивный */
+  --dp-text-white:      #ffffff;
+
+  /* Акценты Steam */
+  --dp-accent:          #66c0f4; /* голубой — ссылки, кнопки */
+  --dp-accent-hover:    #4fa3d4;
+  --dp-accent-green:    #a4d007; /* зелёный — достижения */
+  --dp-accent-orange:   #e8632a; /* оранжевый — предупреждения */
+
+  /* Статусы онлайн */
+  --dp-status-online:   #57cbde;
+  --dp-status-coding:   #a4d007;
+  --dp-status-ingame:   #90ba3c;
+  --dp-status-offline:  #556772;
+
+  /* Тени */
+  --dp-shadow-card:     0 2px 8px rgba(0,0,0,0.4);
+  --dp-shadow-panel:    0 4px 16px rgba(0,0,0,0.6);
+}
+
+/* Сброс браузерных стилей */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /* Motiva Sans — шрифт Steam. Arial как запасной вариант */
+  font-family: "Motiva Sans", Arial, Helvetica, sans-serif;
+  background-color: var(--dp-bg-page);
+  color: var(--dp-text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Скроллбар в стиле Steam */
+::-webkit-scrollbar        { width: 6px; }
+::-webkit-scrollbar-track  { background: var(--dp-bg-panel); }
+::-webkit-scrollbar-thumb  { background: var(--dp-border-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dp-accent); }
+
+/*
+  Переиспользуемые классы — для блоков где Tailwind классов
+  было бы слишком много и JSX стал бы нечитаемым
+*/
+
+/* Базовая панель с градиентом, рамкой и тенью */
+.dp-panel {
+  background: linear-gradient(135deg, #1e2a3a 0%, #16202d 100%);
+  border: 1px solid var(--dp-border);
+  border-radius: 4px;
+  box-shadow: var(--dp-shadow-card);
+}
+
+/* Заголовок секции — как "Недавняя активность" в Steam */
+.dp-section-title {
+  color: var(--dp-text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  background: var(--dp-bg-panel);
+  border-bottom: 1px solid var(--dp-border);
+}
+
+/* Ссылки */
+.dp-link {
+  color: var(--dp-accent);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.dp-link:hover { color: var(--dp-text-white); }
