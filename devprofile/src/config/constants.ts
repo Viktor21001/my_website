@@ -32,10 +32,31 @@ export const LANGUAGE_COLORS: Record<string, string> = {
 
 // Пресеты фонов — картинки кладём в public/presets/
 export const BACKGROUND_PRESETS = [
-  { id: 'default',  label: 'По умолчанию', url: '' },
-  { id: 'space',    label: 'Космос',       url: '/presets/space.jpg' },
-  { id: 'city',     label: 'Город',        url: '/presets/city.jpg' },
-  { id: 'abstract', label: 'Абстракция',   url: '/presets/abstract.jpg' },
+  {
+    id: 'default',
+    label: 'По умолчанию',
+    url: '',
+  },
+  {
+    id: 'space',
+    label: 'Космос',
+    url: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1920&q=80',
+  },
+  {
+    id: 'city',
+    label: 'Город',
+    url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80',
+  },
+  {
+    id: 'forest',
+    label: 'Лес',
+    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80',
+  },
+  {
+    id: 'abstract',
+    label: 'Абстракция',
+    url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=1920&q=80',
+  },
 ]
 
 // XP система как в Steam

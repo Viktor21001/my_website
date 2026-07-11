@@ -1,29 +1,24 @@
 /*
-  GithubProjectCard — карточка репозитория в витрине активности.
+  GithubProjectCard — карточка репозитория.
   
-  ┌─────────────────────────────────────────┐
-  │ 📁 devprofile                           │
-  │ Developer profile platform like Steam  │
-  │                                         │
-  │ TS ████████ 72%  CSS ███ 20%           │
-  │                                         │
-  │ ⭐ 12   🍴 3   Последний коммит: 2д    │
-  └─────────────────────────────────────────┘
+  Что изменилось по сравнению с Фазой 1:
+  - Языки больше не берутся из repo.languages (там пусто при первом запросе)
+  - Вызываем useRepoLanguages(repo.fullName) — отдельный запрос на каждый репо
+  - RTK Query кеширует результат — повторный рендер не вызывает новый fetch
   
-  Принимает данные через props — не знает откуда они пришли.
-  Сейчас это моковые данные, потом — из GitHub API.
+  Почему отдельный запрос на языки а не в одном с репо?
+  GitHub API не отдаёт языки в списке репозиториев — только основной язык.
+  Детальный breakdown языков — отдельный эндпоинт /repos/{owner}/{repo}/languages
 */
 
 import { LanguageBar } from '../../stats/LanguageBar'
+import { useRepoLanguages } from '../../../hooks/useGithub'
 import type { GithubRepo } from '../../../types/github'
-import type { TopLanguage } from '../../../types/github'
-import { LANGUAGE_COLORS } from '../../../config/constants'
 
 interface GithubProjectCardProps {
   repo: GithubRepo
 }
 
-// Форматируем дату в человекочитаемый вид: "2 дня назад"
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -31,34 +26,17 @@ function timeAgo(dateStr: string): string {
   if (days === 1) return 'вчера'
   if (days < 30) return `${days} дн. назад`
   const months = Math.floor(days / 30)
-  return `${months} мес. назад`
-}
-
-// Форматируем минуты в "Xч Yмин" или "Xч"
-export function formatPlaytime(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  if (h === 0) return `${m} мин`
-  if (m === 0) return `${h} ч`
-  return `${h} ч ${m} мин`
-}
-
-// Конвертируем languages { "TypeScript": 45820 } → TopLanguage[]
-function repoLanguagesToTop(languages: Record<string, number>): TopLanguage[] {
-  const total = Object.values(languages).reduce((a, b) => a + b, 0)
-  if (total === 0) return []
-  return Object.entries(languages)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 4)
-    .map(([name, bytes]) => ({
-      name,
-      percent: Math.round((bytes / total) * 100),
-      color: LANGUAGE_COLORS[name] ?? '#8b8b8b',
-    }))
+  if (months < 12) return `${months} мес. назад`
+  return `${Math.floor(months / 12)} г. назад`
 }
 
 export function GithubProjectCard({ repo }: GithubProjectCardProps) {
-  const topLanguages = repoLanguagesToTop(repo.languages)
+  /*
+    Запрашиваем языки для этого конкретного репо.
+    RTK Query автоматически дедуплицирует запросы —
+    если два компонента запрашивают одно и то же, уйдёт один запрос.
+  */
+  const { topLanguages, isLoading: langLoading } = useRepoLanguages(repo.fullName)
 
   return (
     <div
@@ -75,7 +53,7 @@ export function GithubProjectCard({ repo }: GithubProjectCardProps) {
       }}
       onClick={() => window.open(repo.url, '_blank')}
     >
-      {/* Название репо */}
+      {/* Название */}
       <div className="flex items-center gap-2">
         <span style={{ color: 'var(--dp-text-muted)', fontSize: 13 }}>📁</span>
         <span
@@ -84,7 +62,6 @@ export function GithubProjectCard({ repo }: GithubProjectCardProps) {
         >
           {repo.name}
         </span>
-        {/* Приватный репо */}
         {repo.isPrivate && (
           <span
             className="text-xs px-1 rounded shrink-0"
@@ -108,20 +85,38 @@ export function GithubProjectCard({ repo }: GithubProjectCardProps) {
         </p>
       )}
 
-      {/* Полоска языков */}
-      {topLanguages.length > 0 && (
+      {/* Языки — скелетон пока грузятся */}
+      {langLoading ? (
+        <div
+          className="h-1.5 rounded-full animate-pulse"
+          style={{ background: 'var(--dp-border)' }}
+        />
+      ) : (
         <LanguageBar languages={topLanguages} showLabels={true} />
       )}
 
-      {/* Статистика: звёзды, форки, дата */}
+      {/* Статистика */}
       <div
         className="flex items-center gap-3 text-xs"
         style={{ color: 'var(--dp-text-muted)' }}
       >
         {repo.stars > 0 && <span>⭐ {repo.stars}</span>}
         {repo.forks > 0 && <span>🍴 {repo.forks}</span>}
+        {repo.topics.slice(0, 2).map((topic) => (
+          <span
+            key={topic}
+            className="px-1.5 py-0.5 rounded"
+            style={{
+              background: 'var(--dp-bg-panel)',
+              color: 'var(--dp-accent)',
+              border: '1px solid var(--dp-border)',
+            }}
+          >
+            {topic}
+          </span>
+        ))}
         <span className="ml-auto">
-          последний коммит: {timeAgo(repo.pushedAt)}
+          {timeAgo(repo.pushedAt)}
         </span>
       </div>
     </div>

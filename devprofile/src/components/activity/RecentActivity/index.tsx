@@ -1,70 +1,24 @@
 /*
-  RecentActivity — главная витрина активности.
-  Объединяет GitHub проекты и Steam игры в один блок.
+  RecentActivity — теперь использует реальные данные.
   
-  Аналог "Недавняя активность" в Steam, но расширенный:
-  - вкладка "Проекты" — репозитории с GitHub
-  - вкладка "Игры"    — последние игры из Steam
+  Что изменилось:
+  - Вкладка "Проекты" — реальные репо из GitHub API
+  - Вкладка "Игры" — пока моковые (подключим в Фазе 4)
+  - Вкладка "Активность" — лента коммитов и PR (новое)
+  - Добавили состояния loading и error
   
-  Сейчас данные моковые — в Фазе 3 и 4 подключим реальные API.
+  Моковые данные игр оставляем до Фазы 4.
 */
 
 import { useState } from 'react'
 import { GithubProjectCard } from '../GithubProjectCard'
 import { GameCard } from '../GameCard'
-import type { GithubRepo } from '../../../types/github'
+import { ActivityFeed } from '../ActivityFeed'
+import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
+import { useRecentRepos } from '../../../hooks/useGithub'
 import type { SteamGame } from '../../../types/steam'
 
-// Моковые репозитории — временно, пока не подключили GitHub API
-const MOCK_REPOS: GithubRepo[] = [
-  {
-    id: 1,
-    name: 'devprofile',
-    fullName: 'yeliseyev/devprofile',
-    description: 'Developer profile platform inspired by Steam. React + TypeScript.',
-    url: 'https://github.com',
-    stars: 3,
-    forks: 0,
-    language: 'TypeScript',
-    languages: { TypeScript: 45820, CSS: 12300, HTML: 3200 },
-    pushedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date('2025-01-01').toISOString(),
-    topics: ['react', 'typescript', 'steam'],
-    isPrivate: false,
-  },
-  {
-    id: 2,
-    name: 'moi-sklad-internship',
-    fullName: 'yeliseyev/moi-sklad-internship',
-    description: 'Tasks completed during МойСклад internship.',
-    url: 'https://github.com',
-    stars: 0,
-    forks: 0,
-    language: 'TypeScript',
-    languages: { TypeScript: 28000, JavaScript: 5000 },
-    pushedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date('2024-06-01').toISOString(),
-    topics: ['react', 'internship'],
-    isPrivate: false,
-  },
-  {
-    id: 3,
-    name: 'hse-thesis',
-    fullName: 'yeliseyev/hse-thesis',
-    description: 'HSE master thesis — RPA tools adaptation for HR processes.',
-    url: 'https://github.com',
-    stars: 1,
-    forks: 0,
-    language: 'Python',
-    languages: { Python: 12000, Markdown: 8000 },
-    pushedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date('2024-09-01').toISOString(),
-    topics: ['rpa', 'hse'],
-    isPrivate: false,
-  },
-]
-
-// Моковые игры — временно, пока не подключили Steam API
+// Моковые игры — уберём в Фазе 4
 const MOCK_GAMES: SteamGame[] = [
   {
     appId: 2054450,
@@ -94,17 +48,22 @@ const MOCK_GAMES: SteamGame[] = [
   },
 ]
 
-type Tab = 'projects' | 'games'
+type Tab = 'projects' | 'games' | 'activity'
 
 export function RecentActivity() {
-  // Локальный стейт для активной вкладки
-  // Почему useState а не Redux? Это локальное UI состояние компонента
   const [activeTab, setActiveTab] = useState<Tab>('projects')
+
+  /*
+    Вызываем хук всегда — нельзя вызывать хуки внутри условий.
+    RTK Query сам не делает запрос если skip: true
+    (логика в useRecentRepos через skip: !username)
+  */
+  const { repos, isLoading, isError } = useRecentRepos()
 
   return (
     <div className="dp-panel overflow-hidden">
 
-      {/* Заголовок + вкладки */}
+      {/* Шапка с вкладками */}
       <div
         className="flex items-center justify-between"
         style={{
@@ -112,36 +71,46 @@ export function RecentActivity() {
           borderBottom: '1px solid var(--dp-border)',
         }}
       >
-        <span className="dp-section-title border-0">
-          Недавняя активность
+        <span
+          className="px-3 py-2 text-xs uppercase tracking-wider"
+          style={{ color: 'var(--dp-text-secondary)' }}
+        >
+          Активность
         </span>
 
-        {/* Вкладки как в Steam */}
         <div className="flex">
-          <TabButton
-            active={activeTab === 'projects'}
-            onClick={() => setActiveTab('projects')}
-          >
-            Проекты
-          </TabButton>
-          <TabButton
-            active={activeTab === 'games'}
-            onClick={() => setActiveTab('games')}
-          >
-            Игры
-          </TabButton>
+          {(['projects', 'activity', 'games'] as Tab[]).map((tab) => (
+            <TabButton
+              key={tab}
+              active={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'projects' && 'Проекты'}
+              {tab === 'activity' && 'GitHub'}
+              {tab === 'games'    && 'Игры'}
+            </TabButton>
+          ))}
         </div>
       </div>
 
-      {/* Содержимое вкладки */}
+      {/* Вкладка: Проекты */}
       {activeTab === 'projects' && (
-        <div>
-          {MOCK_REPOS.map((repo) => (
+        <>
+          {isLoading && <SkeletonCard />}
+          {isError   && <ErrorCard message="Не удалось загрузить репозитории" />}
+          {!isLoading && !isError && repos.length === 0 && (
+            <EmptyCard message="Нет публичных репозиториев" />
+          )}
+          {!isLoading && !isError && repos.map((repo) => (
             <GithubProjectCard key={repo.id} repo={repo} />
           ))}
-        </div>
+        </>
       )}
 
+      {/* Вкладка: GitHub активность */}
+      {activeTab === 'activity' && <ActivityFeed />}
+
+      {/* Вкладка: Игры (пока мок) */}
       {activeTab === 'games' && (
         <div>
           {MOCK_GAMES.map((game) => (
@@ -149,11 +118,11 @@ export function RecentActivity() {
           ))}
         </div>
       )}
+
     </div>
   )
 }
 
-// Кнопка вкладки — вынесена чтобы не дублировать стили
 function TabButton({
   active,
   onClick,
@@ -170,7 +139,9 @@ function TabButton({
       style={{
         background: active ? 'var(--dp-bg-card)' : 'transparent',
         color: active ? 'var(--dp-text-white)' : 'var(--dp-text-secondary)',
-        borderBottom: active ? '2px solid var(--dp-accent)' : '2px solid transparent',
+        borderBottom: active
+          ? '2px solid var(--dp-accent)'
+          : '2px solid transparent',
         border: 'none',
         cursor: 'pointer',
       }}

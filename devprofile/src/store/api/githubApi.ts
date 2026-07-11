@@ -23,7 +23,7 @@ export const githubApi = createApi({
       // С токеном: 5000 запросов в час
       // Токен получить: https://github.com/settings/tokens
       // Потом добавим: headers.set('Authorization', `Bearer ${token}`)
-      headers.set('Accept', 'application/vnd.github+json')
+      headers.set('Authorization', `Bearer ${import.meta.env.VITE_GITHUB_TOKEN}`)
       return headers
     },
   }),

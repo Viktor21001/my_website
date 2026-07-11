@@ -2,14 +2,13 @@ import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 
 /*
-  Отдельный slice для UI состояний.
-  Почему отдельный от profileSlice?
-  "Открыт ли редактор фона" — это состояние интерфейса,
+  Расширяем uiSlice — добавляем состояние редактора фона.
+  Почему здесь а не в profileSlice?
+  "Открыта ли панель настройки" — это состояние интерфейса,
   а не данные пользователя. Разделяем ответственности.
 */
 interface UiState {
   isBackgroundEditorOpen: boolean
-  // Сюда потом добавим: isSettingsOpen, activeTab и т.д.
 }
 
 const initialState: UiState = {

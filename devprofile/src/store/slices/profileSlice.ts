@@ -3,15 +3,26 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 import type { User, BackgroundConfig } from '../../types/profile'
 
 /*
-  Моковые данные — временно.
-  Когда напишем бэкенд — просто уберём MOCK_USER
-  и добавим RTK Query эндпоинт который fetchит /api/profile.
-  Структура User уже совпадает с тем что вернёт сервер.
+  Загружаем сохранённый фон из localStorage при старте.
+  Почему именно здесь?
+  initialState выполняется один раз при инициализации store.
+  Если фон был сохранён раньше — восстанавливаем его сразу,
+  без мигания дефолтного фона при загрузке страницы.
 */
+function loadSavedBackground(): BackgroundConfig | null {
+  try {
+    const raw = localStorage.getItem('dp_background')
+    return raw ? (JSON.parse(raw) as BackgroundConfig) : null
+  } catch {
+    // localStorage может быть недоступен (приватный режим браузера)
+    return null
+  }
+}
+
 const MOCK_USER: User = {
   id: '1',
-  username: 'yeliseyev',
-  displayName: 'Yeliseyev',
+  username: 'Viktor21001',
+  displayName: 'Viktor21001',
   avatar: 'https://avatars.githubusercontent.com/u/583231?v=4',
   location: 'Yamal-Nenets, Russia',
   bio: 'Frontend Developer & Business Analyst. React, TypeScript, BPMN.',
@@ -40,10 +51,9 @@ const MOCK_USER: User = {
       icon: '🎮',
     },
   ],
-  socialLinks: {
-    github: 'yeliseyev',
-  },
-  background: {
+  socialLinks: { github: 'Viktor21001' },
+  // Берём сохранённый фон или дефолтный
+  background: loadSavedBackground() ?? {
     type: 'preset',
     url: '',
     blur: 0,
@@ -64,12 +74,6 @@ const initialState: ProfileState = {
   error: null,
 }
 
-/*
-  createSlice объединяет actions + reducer в одном месте.
-  RTK автоматически создаёт action creators из reducers.
-  Под капотом используется Immer — поэтому можно писать
-  state.user = action.payload вместо { ...state, user: action.payload }
-*/
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
@@ -77,10 +81,23 @@ const profileSlice = createSlice({
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload
     },
+
     setBackground(state, action: PayloadAction<BackgroundConfig>) {
-      // Immer позволяет мутировать напрямую — не нужен spread
       state.user.background = action.payload
+
+      /*
+        Сохраняем фон в localStorage сразу при изменении.
+        Так фон переживёт перезагрузку страницы.
+        Документация File API и localStorage:
+        https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
+      */
+      try {
+        localStorage.setItem('dp_background', JSON.stringify(action.payload))
+      } catch {
+        // Игнорируем — localStorage может быть переполнен
+      }
     },
+
     setStatus(
       state,
       action: PayloadAction<{ status: User['status']; statusText?: string }>
@@ -88,9 +105,11 @@ const profileSlice = createSlice({
       state.user.status = action.payload.status
       state.user.statusText = action.payload.statusText
     },
+
     setLoading(state, action: PayloadAction<boolean>) {
       state.isLoading = action.payload
     },
+
     setError(state, action: PayloadAction<string | null>) {
       state.error = action.payload
     },
