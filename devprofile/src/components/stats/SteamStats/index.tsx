@@ -85,7 +85,7 @@ export function SteamStats() {
         </div>
 
         {/* Ссылка на профиль Steam */}
-        
+        <a
           href={player.profileUrl}
           target="_blank"
           rel="noreferrer"
