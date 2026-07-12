@@ -18,7 +18,7 @@ import { setBadges, setLevel } from '../store/slices/profileSlice'
 import { useGetRecentReposQuery, useGetEventsQuery, useGetProfileQuery } from '../store/api/githubApi'
 import { useGetFavoriteGamesQuery } from '../store/api/steamApi'
 import { makeBadge } from '../config/badges'
-import type { Badge, BadgeId } from '../types/profile'
+import type { Badge } from '../types/profile'
 import { XP_PER_LEVEL } from '../config/constants'
 
 export function useBadges() {

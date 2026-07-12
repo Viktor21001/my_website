@@ -30,9 +30,11 @@ export interface SteamPlayer {
   Числовые статусы из Steam API — именно так они приходят в ответе.
   0 = офлайн, 1 = онлайн и т.д.
 */
-export enum SteamPersonaState {
-  Offline = 0,
-  Online  = 1,
-  Busy    = 2,
-  Away    = 3,
-}
+export const SteamPersonaState = {
+  Offline: 0,
+  Online: 1,
+  Busy: 2,
+  Away: 3,
+} as const
+
+export type SteamPersonaState = (typeof SteamPersonaState)[keyof typeof SteamPersonaState]

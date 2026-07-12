@@ -1,188 +1,232 @@
 /*
-  ProfileHeader — самый верхний блок профиля.
-  Визуально повторяет шапку Steam профиля:
-  
-  ┌──────────────────────────────────────────────┐
-  │  [АВАТАР]  Yeliseyev              Уровень 18 │
-  │            Viktor                  ████░ XP  │
-  │            Yamal-Nenets, Russia              │
-  │            [GitHub] [Steam]                  │
-  └──────────────────────────────────────────────┘
-  
-  Данные берём из Redux store через useAppSelector.
-  Компонент ничего не знает откуда пришли данные —
-  это правильно, завтра они придут с бэкенда.
+  ProfileHeader — шапка профиля.
+  Адаптив: на мобильном стекируется вертикально.
 */
 
+import { motion } from 'framer-motion'
 import { useAppSelector } from '../../../hooks/redux'
 import { xpProgressPercent } from '../../../config/constants'
+import { fadeUpVariants } from '../../../hooks/useAnimatedMount'
 
 export function ProfileHeader() {
-  // Берём пользователя из Redux store
   const user = useAppSelector((state) => state.profile.user)
 
   return (
     <div
-      className="relative p-4 flex items-end gap-4"
+      className="relative overflow-hidden"
       style={{
-        background: 'linear-gradient(to bottom, rgba(27,40,56,0.3) 0%, var(--dp-bg-page) 100%)',
+        background: 'linear-gradient(180deg, rgba(79,163,212,0.06) 0%, transparent 100%)',
         borderBottom: '1px solid var(--dp-border)',
-        minHeight: '120px',
       }}
     >
-      {/* Аватар */}
+      {/* Верхняя светящаяся линия */}
       <div
-        className="relative shrink-0"
+        className="absolute top-0 left-0 right-0 h-px"
         style={{
-          width: 84,
-          height: 84,
-          border: '2px solid var(--dp-border-light)',
+          background: 'linear-gradient(90deg, transparent, var(--dp-accent-dim), transparent)',
         }}
-      >
-        <img
-          src={user.avatar}
-          alt={user.displayName}
-          className="w-full h-full object-cover"
-        />
+      />
 
-        {/* Индикатор статуса — кружок в углу аватара как в Steam */}
-        <StatusDot status={user.status} />
-      </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 p-4 sm:p-5">
 
-      {/* Основная информация */}
-      <div className="flex-1 min-w-0 pb-1">
-
-        {/* Ник */}
-        <h1
-          className="text-xl font-semibold leading-tight truncate"
-          style={{ color: 'var(--dp-text-white)' }}
+        {/* Аватар */}
+        <motion.div
+          className="relative shrink-0"
+          variants={fadeUpVariants}
+          initial="hidden"
+          animate="visible"
         >
-          {user.displayName}
-        </h1>
-
-        {/* Настоящее имя и локация — как в Steam */}
-        {user.location && (
           <div
-            className="text-xs mt-0.5 flex items-center gap-1"
-            style={{ color: 'var(--dp-text-secondary)' }}
-          >
-            <span>📍</span>
-            <span>{user.location}</span>
-          </div>
-        )}
-
-        {/* Bio */}
-        {user.bio && (
-          <p
-            className="text-xs mt-1 truncate"
-            style={{ color: 'var(--dp-text-muted)' }}
-          >
-            {user.bio}
-          </p>
-        )}
-
-        {/* Ссылки на соцсети */}
-        <div className="flex gap-3 mt-2">
-          {user.socialLinks.github && (
-            <a
-              href={`https://github.com/${user.socialLinks.github}`}
-              target="_blank"
-              rel="noreferrer"
-              className="dp-link text-xs"
-            >
-              GitHub
-            </a>
-          )}
-          {user.socialLinks.steam && (
-            <a
-              href={`https://steamcommunity.com/profiles/${user.socialLinks.steam}`}
-              target="_blank"
-              rel="noreferrer"
-              className="dp-link text-xs"
-            >
-              Steam
-            </a>
-          )}
-          {user.socialLinks.website && (
-            <a
-              href={user.socialLinks.website}
-              target="_blank"
-              rel="noreferrer"
-              className="dp-link text-xs"
-            >
-              Сайт
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Уровень и XP — правый край шапки */}
-      <div className="shrink-0 pb-1 text-right">
-        <div className="flex items-center gap-2 justify-end">
-          <span
-            className="text-xs uppercase tracking-wider"
-            style={{ color: 'var(--dp-text-secondary)' }}
-          >
-            Уровень
-          </span>
-          {/* Бейдж уровня как в Steam */}
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+            className="relative overflow-hidden"
             style={{
-              background: 'var(--dp-accent)',
-              color: '#000',
+              width: 84,
+              height: 84,
+              border: '2px solid var(--dp-border-light)',
+              borderRadius: 6,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
             }}
           >
-            {user.level}
-          </div>
-        </div>
-
-        {/* XP прогресс-бар */}
-        <div className="mt-2 w-32">
-          <div
-            className="h-1.5 rounded-full overflow-hidden"
-            style={{ background: 'var(--dp-border)' }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${xpProgressPercent(user.xp)}%`,
-                background: 'var(--dp-accent)',
-              }}
+            <img
+              src={user.avatar}
+              alt={user.displayName}
+              className="w-full h-full object-cover"
+              style={{ display: 'block' }}
             />
           </div>
-          <div
-            className="text-xs mt-0.5 text-right"
-            style={{ color: 'var(--dp-text-muted)' }}
+
+          {/* Статус-точка */}
+          <StatusDot status={user.status} />
+        </motion.div>
+
+        {/* Основная информация */}
+        <motion.div
+          className="flex-1 min-w-0 pb-1"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h1
+            className="text-xl sm:text-2xl font-bold leading-tight truncate"
+            style={{ color: 'var(--dp-text-white)', letterSpacing: '-0.01em' }}
           >
-            {user.xp % 100} / 100 XP
+            {user.displayName}
+          </h1>
+
+          {/* Username в моно-стиле */}
+          <div
+            className="text-xs mt-0.5 font-mono"
+            style={{ color: 'var(--dp-text-code)' }}
+          >
+            @{user.username}
           </div>
-        </div>
+
+          {user.location && (
+            <div
+              className="text-xs mt-1.5 flex items-center gap-1.5"
+              style={{ color: 'var(--dp-text-secondary)' }}
+            >
+              <span style={{ fontSize: 10 }}>📍</span>
+              <span>{user.location}</span>
+            </div>
+          )}
+
+          {user.bio && (
+            <p
+              className="text-xs mt-1.5 leading-relaxed line-clamp-2"
+              style={{ color: 'var(--dp-text-secondary)', maxWidth: 420 }}
+            >
+              {user.bio}
+            </p>
+          )}
+
+          {/* Соцсети */}
+          <div className="flex flex-wrap gap-3 mt-2.5">
+            {user.socialLinks.github && (
+              <SocialLink
+                href={`https://github.com/${user.socialLinks.github}`}
+                icon="⌥"
+                label="GitHub"
+              />
+            )}
+            {user.socialLinks.steam && (
+              <SocialLink
+                href={`https://steamcommunity.com/profiles/${user.socialLinks.steam}`}
+                icon="◈"
+                label="Steam"
+              />
+            )}
+            {user.socialLinks.website && (
+              <SocialLink
+                href={user.socialLinks.website}
+                icon="↗"
+                label="Сайт"
+              />
+            )}
+          </div>
+        </motion.div>
+
+        {/* Уровень + XP — прячем на очень маленьких экранах */}
+        <motion.div
+          className="hidden sm:flex flex-col items-end gap-2 pb-1 shrink-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          {/* Уровень */}
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs uppercase tracking-wider"
+              style={{ color: 'var(--dp-text-muted)' }}
+            >
+              Уровень
+            </span>
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
+              style={{
+                background: 'linear-gradient(135deg, var(--dp-accent-dim), var(--dp-accent))',
+                color: '#fff',
+                boxShadow: '0 2px 8px rgba(79,163,212,0.4)',
+              }}
+            >
+              {user.level}
+            </div>
+          </div>
+
+          {/* XP прогресс */}
+          <div style={{ width: 130 }}>
+            <div
+              className="h-1.5 rounded-full overflow-hidden"
+              style={{ background: 'var(--dp-border)' }}
+            >
+              <motion.div
+                className="h-full rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, var(--dp-accent-dim), var(--dp-accent-bright))',
+                }}
+                initial={{ width: 0 }}
+                animate={{ width: `${xpProgressPercent(user.xp)}%` }}
+                transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
+              />
+            </div>
+            <div
+              className="text-xs mt-1 text-right font-mono"
+              style={{ color: 'var(--dp-text-muted)' }}
+            >
+              {user.xp % 100} / 100 XP
+            </div>
+          </div>
+        </motion.div>
+
       </div>
     </div>
   )
 }
 
-/*
-  StatusDot — цветной кружок статуса в углу аватара.
-  Вынесли в отдельный компонент потому что логика цвета
-  пригодится ещё в нескольких местах (список друзей и т.д.)
-*/
 function StatusDot({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    online:   'var(--dp-status-online)',
-    coding:   'var(--dp-status-coding)',
+    online:    'var(--dp-status-online)',
+    coding:    'var(--dp-status-coding)',
     'in-game': 'var(--dp-status-ingame)',
-    offline:  'var(--dp-status-offline)',
+    offline:   'var(--dp-status-offline)',
   }
+  const isActive = status !== 'offline'
 
   return (
     <div
       className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2"
       style={{
-        background: colors[status] ?? colors.offline,
+        background:  colors[status] ?? colors.offline,
         borderColor: 'var(--dp-bg-page)',
       }}
-    />
+    >
+      {/* Пульсация только для активных статусов */}
+      {isActive && (
+        <div
+          className="absolute inset-0 rounded-full dp-status-pulse"
+          style={{ background: colors[status] ?? colors.offline, opacity: 0.4 }}
+        />
+      )}
+    </div>
+  )
+}
+
+function SocialLink({ href, icon, label }: { href: string; icon: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-1 text-xs transition-all duration-150"
+      style={{ color: 'var(--dp-text-secondary)' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = 'var(--dp-accent-bright)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = 'var(--dp-text-secondary)'
+      }}
+    >
+      <span style={{ fontFamily: 'monospace' }}>{icon}</span>
+      <span>{label}</span>
+    </a>
   )
 }

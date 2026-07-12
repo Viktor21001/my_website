@@ -20,6 +20,14 @@ import {
 import type { GithubRepo } from '../types/github'
 import { LANGUAGE_COLORS } from '../config/constants'
 
+type ActivityFeedItem = {
+  id: string
+  type: 'commit' | 'pr' | 'repo_created'
+  repoName: string
+  message: string
+  createdAt: string
+}
+
 // Хук для получения последних репозиториев с языками
 export function useRecentRepos() {
   const username = useAppSelector(
@@ -89,7 +97,7 @@ export function useActivityFeed() {
     PullRequestEvent → строка с действием
     CreateEvent  → создание репо или ветки
   */
-  const feedItems = events.flatMap((event) => {
+  const feedItems: ActivityFeedItem[] = events.flatMap((event): ActivityFeedItem[] => {
     if (event.type === 'PushEvent') {
       return (event.payload.commits ?? []).slice(0, 2).map((commit) => ({
         id: `${event.id}-${commit.sha}`,

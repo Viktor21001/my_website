@@ -1,73 +1,50 @@
-/*
-  GithubProjectCard — карточка репозитория.
-  
-  Что изменилось по сравнению с Фазой 1:
-  - Языки больше не берутся из repo.languages (там пусто при первом запросе)
-  - Вызываем useRepoLanguages(repo.fullName) — отдельный запрос на каждый репо
-  - RTK Query кеширует результат — повторный рендер не вызывает новый fetch
-  
-  Почему отдельный запрос на языки а не в одном с репо?
-  GitHub API не отдаёт языки в списке репозиториев — только основной язык.
-  Детальный breakdown языков — отдельный эндпоинт /repos/{owner}/{repo}/languages
-*/
-
+import { motion } from 'framer-motion'
 import { LanguageBar } from '../../stats/LanguageBar'
 import { useRepoLanguages } from '../../../hooks/useGithub'
+import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import type { GithubRepo } from '../../../types/github'
 
-interface GithubProjectCardProps {
-  repo: GithubRepo
-}
-
 function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days === 0) return 'сегодня'
-  if (days === 1) return 'вчера'
-  if (days < 30) return `${days} дн. назад`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months} мес. назад`
-  return `${Math.floor(months / 12)} г. назад`
+  const diff  = Date.now() - new Date(dateStr).getTime()
+  const days  = Math.floor(diff / 86400000)
+  if (days === 0)  return 'сегодня'
+  if (days === 1)  return 'вчера'
+  if (days < 30)   return `${days}д. назад`
+  if (days < 365)  return `${Math.floor(days / 30)}мес. назад`
+  return `${Math.floor(days / 365)}г. назад`
 }
 
-export function GithubProjectCard({ repo }: GithubProjectCardProps) {
-  /*
-    Запрашиваем языки для этого конкретного репо.
-    RTK Query автоматически дедуплицирует запросы —
-    если два компонента запрашивают одно и то же, уйдёт один запрос.
-  */
-  const { topLanguages, isLoading: langLoading } = useRepoLanguages(repo.fullName)
+export function GithubProjectCard({ repo }: { repo: GithubRepo }) {
+  const { topLanguages, isLoading } = useRepoLanguages(repo.fullName)
 
   return (
-    <div
-      className="p-3 flex flex-col gap-2 transition-colors duration-150 cursor-pointer"
+    <motion.div
+      className="flex flex-col gap-2.5 p-3.5 cursor-pointer"
       style={{
-        background: 'var(--dp-bg-card)',
+        background:   'var(--dp-bg-card)',
         borderBottom: '1px solid var(--dp-border)',
+        transition:   'background var(--dp-transition)',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--dp-bg-hover)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'var(--dp-bg-card)'
-      }}
+      variants={staggerItemVariants}
+      whileHover={{ backgroundColor: 'var(--dp-bg-card-hover)' }}
       onClick={() => window.open(repo.url, '_blank')}
     >
-      {/* Название */}
-      <div className="flex items-center gap-2">
-        <span style={{ color: 'var(--dp-text-muted)', fontSize: 13 }}>📁</span>
+      {/* Заголовок */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span style={{ color: 'var(--dp-text-muted)', fontSize: 12 }}>⌥</span>
         <span
-          className="text-sm font-medium truncate"
-          style={{ color: 'var(--dp-accent)' }}
+          className="text-sm font-mono font-medium truncate"
+          style={{ color: 'var(--dp-accent-bright)' }}
         >
           {repo.name}
         </span>
         {repo.isPrivate && (
           <span
-            className="text-xs px-1 rounded shrink-0"
+            className="shrink-0 px-1.5 py-0.5 text-xs rounded"
             style={{
               background: 'var(--dp-border)',
-              color: 'var(--dp-text-muted)',
+              color:      'var(--dp-text-muted)',
+              fontSize:   10,
             }}
           >
             приватный
@@ -85,40 +62,46 @@ export function GithubProjectCard({ repo }: GithubProjectCardProps) {
         </p>
       )}
 
-      {/* Языки — скелетон пока грузятся */}
-      {langLoading ? (
-        <div
-          className="h-1.5 rounded-full animate-pulse"
-          style={{ background: 'var(--dp-border)' }}
-        />
+      {/* Языки */}
+      {isLoading ? (
+        <div className="dp-skeleton h-1.5 w-full rounded-full" />
       ) : (
-        <LanguageBar languages={topLanguages} showLabels={true} />
+        <LanguageBar languages={topLanguages} showLabels />
       )}
 
-      {/* Статистика */}
+      {/* Мета */}
       <div
-        className="flex items-center gap-3 text-xs"
+        className="flex items-center flex-wrap gap-2 text-xs"
         style={{ color: 'var(--dp-text-muted)' }}
       >
-        {repo.stars > 0 && <span>⭐ {repo.stars}</span>}
-        {repo.forks > 0 && <span>🍴 {repo.forks}</span>}
-        {repo.topics.slice(0, 2).map((topic) => (
+        {repo.stars > 0 && (
+          <span className="flex items-center gap-1">
+            <span>⭐</span> {repo.stars}
+          </span>
+        )}
+        {repo.forks > 0 && (
+          <span className="flex items-center gap-1">
+            <span>⑂</span> {repo.forks}
+          </span>
+        )}
+        {repo.topics.slice(0, 2).map((t) => (
           <span
-            key={topic}
-            className="px-1.5 py-0.5 rounded"
+            key={t}
+            className="px-1.5 py-0.5 rounded font-mono"
             style={{
-              background: 'var(--dp-bg-panel)',
-              color: 'var(--dp-accent)',
-              border: '1px solid var(--dp-border)',
+              background: 'rgba(79,163,212,0.08)',
+              color:      'var(--dp-accent)',
+              border:     '1px solid rgba(79,163,212,0.2)',
+              fontSize:   10,
             }}
           >
-            {topic}
+            {t}
           </span>
         ))}
-        <span className="ml-auto">
+        <span className="ml-auto font-mono" style={{ fontSize: 11 }}>
           {timeAgo(repo.pushedAt)}
         </span>
       </div>
-    </div>
+    </motion.div>
   )
 }

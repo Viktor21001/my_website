@@ -1,51 +1,38 @@
-/*
-  GameCard — карточка игры.
-  Теперь использует formatPlaytime и formatLastPlayed из useSteam.
-  Визуально не изменилась — только утилиты вынесены в хук.
-*/
-
+import { motion } from 'framer-motion'
 import { formatPlaytime, formatLastPlayed } from '../../../hooks/useSteam'
+import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import type { SteamGame } from '../../../types/steam'
 
-interface GameCardProps {
-  game: SteamGame
-}
-
-export function GameCard({ game }: GameCardProps) {
+export function GameCard({ game }: { game: SteamGame }) {
   return (
-    <div
-      className="flex gap-3 p-3 transition-colors duration-150 cursor-pointer"
+    <motion.div
+      className="flex gap-3 p-3 cursor-pointer"
       style={{
-        background: 'var(--dp-bg-card)',
+        background:   'var(--dp-bg-card)',
         borderBottom: '1px solid var(--dp-border)',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--dp-bg-hover)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'var(--dp-bg-card)'
-      }}
+      variants={staggerItemVariants}
+      whileHover={{ backgroundColor: 'var(--dp-bg-card-hover)' }}
     >
-      {/* Обложка игры */}
+      {/* Обложка */}
       <div
-        className="shrink-0 rounded-sm overflow-hidden"
+        className="shrink-0 rounded overflow-hidden"
         style={{
-          width: 92,
-          height: 43,
+          width:      92,
+          height:     43,
           background: 'var(--dp-border)',
+          borderRadius: 'var(--dp-radius-sm)',
         }}
       >
         <img
           src={game.imgLogoUrl}
           alt={game.name}
           className="w-full h-full object-cover"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none'
-          }}
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
         />
       </div>
 
-      {/* Информация */}
+      {/* Инфо */}
       <div className="flex-1 min-w-0">
         <div
           className="text-sm font-medium truncate"
@@ -53,19 +40,11 @@ export function GameCard({ game }: GameCardProps) {
         >
           {game.name}
         </div>
-
-        <div
-          className="text-xs mt-0.5"
-          style={{ color: 'var(--dp-text-muted)' }}
-        >
+        <div className="text-xs mt-0.5" style={{ color: 'var(--dp-text-muted)' }}>
           {formatPlaytime(game.playtimeForever)} всего
         </div>
-
         {game.lastPlayed && (
-          <div
-            className="text-xs"
-            style={{ color: 'var(--dp-text-muted)' }}
-          >
+          <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>
             последний запуск {formatLastPlayed(game.lastPlayed)}
           </div>
         )}
@@ -75,19 +54,16 @@ export function GameCard({ game }: GameCardProps) {
       {game.playtime2Weeks && (
         <div className="shrink-0 text-right">
           <div
-            className="text-xs font-medium"
-            style={{ color: 'var(--dp-text-secondary)' }}
+            className="text-xs font-mono font-medium"
+            style={{ color: 'var(--dp-text-code)' }}
           >
             {formatPlaytime(game.playtime2Weeks)}
           </div>
-          <div
-            className="text-xs"
-            style={{ color: 'var(--dp-text-muted)' }}
-          >
+          <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>
             за 2 нед.
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
