@@ -1,13 +1,9 @@
 /*
-  RecentActivity — теперь использует реальные данные.
-  
-  Что изменилось:
-  - Вкладка "Проекты" — реальные репо из GitHub API
-  - Вкладка "Игры" — пока моковые (подключим в Фазе 4)
-  - Вкладка "Активность" — лента коммитов и PR (новое)
-  - Добавили состояния loading и error
-  
-  Моковые данные игр оставляем до Фазы 4.
+  RecentActivity — финальная версия для Фазы 4.
+  Теперь все три вкладки с реальными данными:
+  - Проекты → GitHub API
+  - GitHub   → GitHub Events API
+  - Игры     → Steam API (убрали мок)
 */
 
 import { useState } from 'react'
@@ -16,49 +12,24 @@ import { GameCard } from '../GameCard'
 import { ActivityFeed } from '../ActivityFeed'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
 import { useRecentRepos } from '../../../hooks/useGithub'
-import type { SteamGame } from '../../../types/steam'
+import { useRecentGames } from '../../../hooks/useSteam'
 
-// Моковые игры — уберём в Фазе 4
-const MOCK_GAMES: SteamGame[] = [
-  {
-    appId: 2054450,
-    name: 'Subnautica 2',
-    imgIconUrl: '',
-    imgLogoUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/2054450/header.jpg',
-    playtimeForever: 1800,
-    playtime2Weeks: 180,
-    lastPlayed: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60,
-  },
-  {
-    appId: 418370,
-    name: 'Resident Evil 7',
-    imgIconUrl: '',
-    imgLogoUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/418370/header.jpg',
-    playtimeForever: 120,
-    playtime2Weeks: 120,
-    lastPlayed: Math.floor(Date.now() / 1000) - 22 * 24 * 60 * 60,
-  },
-  {
-    appId: 220200,
-    name: 'Kerbal Space Program',
-    imgIconUrl: '',
-    imgLogoUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/220200/header.jpg',
-    playtimeForever: 3420,
-    lastPlayed: Math.floor(Date.now() / 1000) - 33 * 24 * 60 * 60,
-  },
-]
-
-type Tab = 'projects' | 'games' | 'activity'
+type Tab = 'projects' | 'activity' | 'games'
 
 export function RecentActivity() {
   const [activeTab, setActiveTab] = useState<Tab>('projects')
 
+  const { repos, isLoading: reposLoading, isError: reposError } =
+    useRecentRepos()
+
   /*
-    Вызываем хук всегда — нельзя вызывать хуки внутри условий.
-    RTK Query сам не делает запрос если skip: true
-    (логика в useRecentRepos через skip: !username)
+    Вызываем оба хука сразу — не внутри условия.
+    React требует чтобы хуки вызывались всегда в одном порядке.
+    RTK Query сам не делает лишних запросов если вкладка не активна —
+    данные просто лежат в кеше и ждут.
   */
-  const { repos, isLoading, isError } = useRecentRepos()
+  const { games, isLoading: gamesLoading, isError: gamesError } =
+    useRecentGames()
 
   return (
     <div className="dp-panel overflow-hidden">
@@ -96,12 +67,14 @@ export function RecentActivity() {
       {/* Вкладка: Проекты */}
       {activeTab === 'projects' && (
         <>
-          {isLoading && <SkeletonCard />}
-          {isError   && <ErrorCard message="Не удалось загрузить репозитории" />}
-          {!isLoading && !isError && repos.length === 0 && (
+          {reposLoading && <SkeletonCard />}
+          {reposError && (
+            <ErrorCard message="Не удалось загрузить репозитории" />
+          )}
+          {!reposLoading && !reposError && repos.length === 0 && (
             <EmptyCard message="Нет публичных репозиториев" />
           )}
-          {!isLoading && !isError && repos.map((repo) => (
+          {!reposLoading && !reposError && repos.map((repo) => (
             <GithubProjectCard key={repo.id} repo={repo} />
           ))}
         </>
@@ -110,13 +83,20 @@ export function RecentActivity() {
       {/* Вкладка: GitHub активность */}
       {activeTab === 'activity' && <ActivityFeed />}
 
-      {/* Вкладка: Игры (пока мок) */}
+      {/* Вкладка: Игры — теперь реальные данные */}
       {activeTab === 'games' && (
-        <div>
-          {MOCK_GAMES.map((game) => (
+        <>
+          {gamesLoading && <SkeletonCard />}
+          {gamesError && (
+            <ErrorCard message="Проверь Steam ID и настройки приватности" />
+          )}
+          {!gamesLoading && !gamesError && games.length === 0 && (
+            <EmptyCard message="Нет недавних игр за последние 2 недели" />
+          )}
+          {!gamesLoading && !gamesError && games.map((game) => (
             <GameCard key={game.appId} game={game} />
           ))}
-        </div>
+        </>
       )}
 
     </div>

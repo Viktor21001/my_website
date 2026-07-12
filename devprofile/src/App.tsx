@@ -7,6 +7,7 @@ import { BadgesRow } from './components/profile/BadgesRow'
 import { RecentActivity } from './components/activity/RecentActivity'
 import { FavoriteGames } from './components/activity/FavoriteGames'
 import { GithubStats } from './components/stats/GithubStats'
+import { SteamStats } from './components/stats/SteamStats'
 import { ComingSoon } from './components/shared/ComingSoon'
 
 function App() {
@@ -33,8 +34,8 @@ function App() {
 
         rightColumn={
           <>
-            {/* Блок статистики GitHub — новый в этой фазе */}
             <GithubStats />
+            <SteamStats />
             <FavoriteGames />
             <ComingSoon title="Друзья" icon="👥" />
             <ComingSoon title="Группы" icon="🏠" />

@@ -1,30 +1,14 @@
 /*
-  GameCard — карточка игры в блоке активности.
-  Аналог записи в "Недавняя активность" Steam.
-  
-  ┌──────────────────────────────────────────────┐
-  │ [обложка]  Subnautica 2                      │
-  │            30 ч. всего                       │
-  │            последний запуск 9 июн            │
-  └──────────────────────────────────────────────┘
+  GameCard — карточка игры.
+  Теперь использует formatPlaytime и formatLastPlayed из useSteam.
+  Визуально не изменилась — только утилиты вынесены в хук.
 */
 
+import { formatPlaytime, formatLastPlayed } from '../../../hooks/useSteam'
 import type { SteamGame } from '../../../types/steam'
 
 interface GameCardProps {
   game: SteamGame
-}
-
-function formatPlaytime(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  if (h === 0) return `${minutes} мин`
-  return `${h} ч.`
-}
-
-function formatLastPlayed(timestamp?: number): string {
-  if (!timestamp) return ''
-  const date = new Date(timestamp * 1000)
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
 export function GameCard({ game }: GameCardProps) {
@@ -44,15 +28,18 @@ export function GameCard({ game }: GameCardProps) {
     >
       {/* Обложка игры */}
       <div
-        className="shrink-0 rounded overflow-hidden"
-        style={{ width: 92, height: 43, background: 'var(--dp-border)' }}
+        className="shrink-0 rounded-sm overflow-hidden"
+        style={{
+          width: 92,
+          height: 43,
+          background: 'var(--dp-border)',
+        }}
       >
         <img
           src={game.imgLogoUrl}
           alt={game.name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            // Если картинка не загрузилась — прячем
             e.currentTarget.style.display = 'none'
           }}
         />
@@ -68,7 +55,7 @@ export function GameCard({ game }: GameCardProps) {
         </div>
 
         <div
-          className="text-xs mt-1"
+          className="text-xs mt-0.5"
           style={{ color: 'var(--dp-text-muted)' }}
         >
           {formatPlaytime(game.playtimeForever)} всего
@@ -88,7 +75,7 @@ export function GameCard({ game }: GameCardProps) {
       {game.playtime2Weeks && (
         <div className="shrink-0 text-right">
           <div
-            className="text-xs"
+            className="text-xs font-medium"
             style={{ color: 'var(--dp-text-secondary)' }}
           >
             {formatPlaytime(game.playtime2Weeks)}
