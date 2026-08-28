@@ -3,6 +3,7 @@ import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { useMeasurements } from '../../../hooks/useFitnessData'
 import { AddMeasurementForm } from '../AddMeasurementForm'
 import { MeasurementsChart } from '../MeasurementsChart'
+import { BodyDiagram } from '../BodyDiagram'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -31,7 +32,14 @@ export function MeasurementsHistory() {
 
   return (
     <div className="flex flex-col">
-      {measurements.length > 0 && <MeasurementsChart measurements={measurements} />}
+      {measurements.length > 0 && (
+        <div className="flex gap-3 p-3 items-start" style={{ borderBottom: '1px solid var(--dp-border)' }}>
+          <div className="flex-1 min-w-0">
+            <MeasurementsChart measurements={measurements} />
+          </div>
+          <BodyDiagram />
+        </div>
+      )}
 
       <AddMeasurementForm />
 

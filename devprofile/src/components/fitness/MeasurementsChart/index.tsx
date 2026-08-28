@@ -85,8 +85,8 @@ export function MeasurementsChart({ measurements }: { measurements: BodyMeasurem
   })
 
   return (
-    <div style={{ borderBottom: '1px solid var(--dp-border)' }}>
-      <div className="p-3">
+    <div>
+      <div className="pb-2">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           width="100%"
@@ -135,7 +135,7 @@ export function MeasurementsChart({ measurements }: { measurements: BodyMeasurem
       </div>
 
       {/* Легенда — цвет линии и текущее (последнее) значение */}
-      <div className="px-3 pb-3 flex flex-wrap gap-x-4 gap-y-1.5">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {lines.map((line) => (
           <div
             key={line.key}
