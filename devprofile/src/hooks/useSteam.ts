@@ -3,14 +3,10 @@
   Такой же подход как useGithub — компоненты не знают
   откуда пришли данные и какой API используется.
 
-  Steam ID берём из двух мест:
-  1. Redux store (user.socialLinks.steam) — когда придёт бэкенд
-  2. .env переменная VITE_STEAM_ID — для текущего мока
-
-  Почему из двух мест?
-  Сейчас у нас один пользователь — мы сами.
-  Когда сделаем платформу — каждый пользователь будет
-  хранить свой Steam ID в профиле на бэкенде.
+  Steam ID берём из аккаунта (state.auth.user.steamId), настраивается
+  в Настройках профиля. Раньше был фолбэк на .env VITE_STEAM_ID — убрали:
+  в мультипользовательском режиме показывать личный Steam владельца
+  сайта дефолтом для чужого нового аккаунта неверно.
 */
 
 import { useAppSelector } from './redux'
@@ -22,18 +18,8 @@ import {
 import { SteamPersonaState } from '../types/steam'
 import type { UserStatus } from '../types/profile'
 
-// Берём Steam ID из store или из .env
 function useSteamId(): string {
-  const steamIdFromStore = useAppSelector(
-    (state) => state.profile.user.socialLinks.steam
-  )
-  /*
-    ?? — оператор nullish coalescing.
-    Берём из store если есть, иначе из .env.
-    Так в будущем достаточно сохранить Steam ID в профиле —
-    и всё заработает без изменений в коде.
-  */
-  return steamIdFromStore ?? (import.meta.env.VITE_STEAM_ID as string) ?? ''
+  return useAppSelector((state) => state.auth.user?.steamId ?? '')
 }
 
 // Статус Steam → наш UserStatus

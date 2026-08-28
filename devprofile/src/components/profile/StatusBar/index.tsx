@@ -13,7 +13,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
 
 export function StatusBar() {
   const dispatch = useAppDispatch()
-  const { status, statusText } = useAppSelector((state) => state.profile.user)
+  const { status, statusText } = useAppSelector((state) => state.profile)
   const { player, isError } = useSteamPlayer()
 
   useEffect(() => {

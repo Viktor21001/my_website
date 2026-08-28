@@ -1,0 +1,48 @@
+import { Router } from 'express'
+import { prisma } from '../lib/prisma'
+import { authenticate } from '../middleware/authenticate'
+import { asyncHandler } from '../lib/asyncHandler'
+import { HttpError } from '../middleware/errorHandler'
+import { serializeUser } from '../lib/serializeUser'
+
+const router = Router()
+router.use(authenticate)
+
+interface BackgroundInput {
+  type?: unknown
+  url?: unknown
+  blur?: unknown
+  opacity?: unknown
+}
+
+router.patch(
+  '/me',
+  asyncHandler(async (req, res) => {
+    const { displayName, avatar, bio, location, githubUsername, steamId, background } = req.body ?? {}
+
+    if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
+      throw new HttpError(400, 'Имя не может быть пустым')
+    }
+
+    const data: Record<string, unknown> = {}
+    if (displayName !== undefined) data.displayName = displayName
+    if (avatar !== undefined) data.avatar = avatar || null
+    if (bio !== undefined) data.bio = bio || null
+    if (location !== undefined) data.location = location || null
+    if (githubUsername !== undefined) data.githubUsername = githubUsername || null
+    if (steamId !== undefined) data.steamId = steamId || null
+
+    if (background !== undefined) {
+      const bg = background as BackgroundInput
+      if (typeof bg.type === 'string') data.backgroundType = bg.type
+      if (typeof bg.url === 'string') data.backgroundUrl = bg.url
+      if (typeof bg.blur === 'number') data.backgroundBlur = bg.blur
+      if (typeof bg.opacity === 'number') data.backgroundOpacity = bg.opacity
+    }
+
+    const user = await prisma.user.update({ where: { id: req.userId! }, data })
+    res.json(serializeUser(user))
+  })
+)
+
+export default router

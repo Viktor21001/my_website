@@ -10,7 +10,7 @@ import type { Badge, BadgeId } from '../../../types/profile'
 const TOOLTIP_WIDTH = 192
 
 export function BadgesRow() {
-  const badges      = useAppSelector((state) => state.profile.user.badges)
+  const badges      = useAppSelector((state) => state.profile.badges)
   const unlockedIds = new Set(badges.map((b) => b.id))
   const allIds      = Object.keys(BADGE_CONFIG) as BadgeId[]
 

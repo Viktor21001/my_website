@@ -1,28 +1,14 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import type { User } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { signToken } from '../lib/jwt'
 import { authenticate } from '../middleware/authenticate'
 import { asyncHandler } from '../lib/asyncHandler'
 import { HttpError } from '../middleware/errorHandler'
-import { toClientAgeGroup, toDbAgeGroup } from '../lib/ageGroup'
+import { toDbAgeGroup } from '../lib/ageGroup'
+import { serializeUser } from '../lib/serializeUser'
 
 const router = Router()
-
-function serializeUser(user: User) {
-  return {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    displayName: user.displayName,
-    avatar: user.avatar,
-    bio: user.bio,
-    location: user.location,
-    ageGroup: toClientAgeGroup(user.ageGroup),
-    createdAt: user.createdAt,
-  }
-}
 
 router.post(
   '/register',
@@ -85,6 +71,31 @@ router.get(
     const user = await prisma.user.findUnique({ where: { id: req.userId! } })
     if (!user) throw new HttpError(404, 'Пользователь не найден')
     res.json({ user: serializeUser(user) })
+  })
+)
+
+router.post(
+  '/change-password',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body ?? {}
+    if (!oldPassword || !newPassword) {
+      throw new HttpError(400, 'Укажите старый и новый пароль')
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new HttpError(400, 'Новый пароль должен быть не короче 6 символов')
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } })
+    if (!user) throw new HttpError(404, 'Пользователь не найден')
+
+    const valid = await bcrypt.compare(oldPassword, user.passwordHash)
+    if (!valid) throw new HttpError(401, 'Старый пароль неверен')
+
+    const passwordHash = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } })
+
+    res.json({ ok: true })
   })
 )
 

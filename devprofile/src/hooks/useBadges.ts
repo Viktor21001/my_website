@@ -24,14 +24,8 @@ import { XP_PER_LEVEL } from '../config/constants'
 export function useBadges() {
   const dispatch = useAppDispatch()
 
-  const githubUsername = useAppSelector(
-    (state) => state.profile.user.socialLinks.github ?? ''
-  )
-  const steamId = useAppSelector(
-    (state) =>
-      state.profile.user.socialLinks.steam ??
-      (import.meta.env.VITE_STEAM_ID as string) ?? ''
-  )
+  const githubUsername = useAppSelector((state) => state.auth.user?.githubUsername ?? '')
+  const steamId = useAppSelector((state) => state.auth.user?.steamId ?? '')
 
   /*
     Все данные уже закешированы RTK Query из других компонентов.

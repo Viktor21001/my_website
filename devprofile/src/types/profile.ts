@@ -37,27 +37,16 @@ export interface BackgroundConfig {
   opacity: number
 }
 
-export interface SocialLinks {
-  github?: string
-  steam?: string
-  wakatime?: string
-  website?: string
+/*
+  Фолбэк для авторизованных сессий из localStorage, сохранённых ДО того
+  как background/githubUsername/steamId появились в AuthUser — без него
+  чтение user.background у такого «старого» юзера даёт undefined и роняет
+  всё дерево (например BackgroundSection в SettingsPanel).
+*/
+export const DEFAULT_BACKGROUND: BackgroundConfig = {
+  type: 'preset',
+  url: '',
+  blur: 0,
+  opacity: 0.85,
 }
 
-export interface User {
-  id: string
-  username: string
-  displayName: string
-  avatar: string
-  location?: string
-  bio?: string
-  level: number
-  xp: number
-  status: UserStatus
-  statusText?: string
-  badges: Badge[]
-  socialLinks: SocialLinks
-  background: BackgroundConfig
-  createdAt: Date
-  lastSeen?: Date
-}

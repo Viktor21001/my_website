@@ -9,10 +9,11 @@
 */
 
 import { useAppSelector } from '../../../hooks/redux'
+import { DEFAULT_BACKGROUND } from '../../../types/profile'
 
 export function Background() {
   const background = useAppSelector(
-    (state) => state.profile.user.background
+    (state) => state.auth.user?.background ?? DEFAULT_BACKGROUND
   )
 
   if (!background.url) return null

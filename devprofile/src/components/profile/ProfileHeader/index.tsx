@@ -9,7 +9,10 @@ import { xpProgressPercent } from '../../../config/constants'
 import { fadeUpVariants } from '../../../hooks/useAnimatedMount'
 
 export function ProfileHeader() {
-  const user = useAppSelector((state) => state.profile.user)
+  const user = useAppSelector((state) => state.auth.user)
+  const { level, xp, status } = useAppSelector((state) => state.profile)
+
+  if (!user) return null
 
   return (
     <div
@@ -37,25 +40,35 @@ export function ProfileHeader() {
           animate="visible"
         >
           <div
-            className="relative overflow-hidden"
+            className="relative overflow-hidden flex items-center justify-center"
             style={{
               width: 84,
               height: 84,
               border: '2px solid var(--dp-border-light)',
               borderRadius: 6,
               boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              background: 'var(--dp-bg-card)',
             }}
           >
-            <img
-              src={user.avatar}
-              alt={user.displayName}
-              className="w-full h-full object-cover"
-              style={{ display: 'block' }}
-            />
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.displayName}
+                className="w-full h-full object-cover"
+                style={{ display: 'block' }}
+              />
+            ) : (
+              <span
+                className="text-3xl font-bold"
+                style={{ color: 'var(--dp-text-secondary)' }}
+              >
+                {user.displayName.slice(0, 1).toUpperCase()}
+              </span>
+            )}
           </div>
 
           {/* Статус-точка */}
-          <StatusDot status={user.status} />
+          <StatusDot status={status} />
         </motion.div>
 
         {/* Основная информация */}
@@ -101,25 +114,18 @@ export function ProfileHeader() {
 
           {/* Соцсети */}
           <div className="flex flex-wrap gap-3 mt-2.5">
-            {user.socialLinks.github && (
+            {user.githubUsername && (
               <SocialLink
-                href={`https://github.com/${user.socialLinks.github}`}
+                href={`https://github.com/${user.githubUsername}`}
                 icon="⌥"
                 label="GitHub"
               />
             )}
-            {user.socialLinks.steam && (
+            {user.steamId && (
               <SocialLink
-                href={`https://steamcommunity.com/profiles/${user.socialLinks.steam}`}
+                href={`https://steamcommunity.com/profiles/${user.steamId}`}
                 icon="◈"
                 label="Steam"
-              />
-            )}
-            {user.socialLinks.website && (
-              <SocialLink
-                href={user.socialLinks.website}
-                icon="↗"
-                label="Сайт"
               />
             )}
           </div>
@@ -148,7 +154,7 @@ export function ProfileHeader() {
                 boxShadow: '0 2px 8px rgba(79,163,212,0.4)',
               }}
             >
-              {user.level}
+              {level}
             </div>
           </div>
 
@@ -164,7 +170,7 @@ export function ProfileHeader() {
                   background: 'linear-gradient(90deg, var(--dp-accent-dim), var(--dp-accent-bright))',
                 }}
                 initial={{ width: 0 }}
-                animate={{ width: `${xpProgressPercent(user.xp)}%` }}
+                animate={{ width: `${xpProgressPercent(xp)}%` }}
                 transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
               />
             </div>
@@ -172,7 +178,7 @@ export function ProfileHeader() {
               className="text-xs mt-1 text-right font-mono"
               style={{ color: 'var(--dp-text-muted)' }}
             >
-              {user.xp % 100} / 100 XP
+              {xp % 100} / 100 XP
             </div>
           </div>
         </motion.div>

@@ -8,8 +8,8 @@ import { useEffect } from 'react'
 import { useAppSelector } from './redux'
 
 export function usePageTitle() {
-  const { displayName, status, statusText } =
-    useAppSelector((state) => state.profile.user)
+  const displayName = useAppSelector((state) => state.auth.user?.displayName ?? 'DevProfile')
+  const { status, statusText } = useAppSelector((state) => state.profile)
 
   useEffect(() => {
     if (status === 'in-game' && statusText) {

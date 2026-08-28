@@ -12,9 +12,7 @@ import { LanguageBar } from '../LanguageBar'
 import { SkeletonCard } from '../../shared/Card'
 
 export function GithubStats() {
-  const username = useAppSelector(
-    (state) => state.profile.user.socialLinks.github ?? ''
-  )
+  const username = useAppSelector((state) => state.auth.user?.githubUsername ?? '')
 
   /*
     Два отдельных запроса — профиль и языки.

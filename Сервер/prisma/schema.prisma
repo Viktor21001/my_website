@@ -45,6 +45,14 @@ model User {
   ageGroup     AgeGroup @default(AGE_25_30)
   createdAt    DateTime @default(now())
 
+  // Не заполняются при регистрации — донастраиваются в Настройках профиля
+  githubUsername    String?
+  steamId           String?
+  backgroundType    String  @default("preset")
+  backgroundUrl     String  @default("")
+  backgroundBlur    Int     @default(0)
+  backgroundOpacity Float   @default(0.85)
+
   measurements  BodyMeasurement[]
   inbodyResults InBodyResult[]
   workouts      Workout[]

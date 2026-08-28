@@ -19,7 +19,7 @@ import { setStatus } from '../store/slices/profileSlice'
 
 export function usePresence() {
   const dispatch      = useAppDispatch()
-  const currentStatus = useAppSelector((state) => state.profile.user.status)
+  const currentStatus = useAppSelector((state) => state.profile.status)
 
   useEffect(() => {
     function handleVisibilityChange() {

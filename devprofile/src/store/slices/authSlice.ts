@@ -7,8 +7,7 @@ interface SavedAuth {
   user: AuthUser
 }
 
-// Тот же приём, что и loadSavedBackground в profileSlice.ts —
-// токен и юзер всегда выставляются/сбрасываются вместе, поэтому
+// Токен и юзер всегда выставляются/сбрасываются вместе, поэтому
 // храним их одним JSON-ключом, а не двумя раздельными.
 function loadSavedAuth(): SavedAuth | null {
   try {
@@ -45,6 +44,21 @@ const authSlice = createSlice({
       }
     },
 
+    /*
+      updateUser — частичное обновление профиля после успешного PATCH
+      /users/me (настройки). Мержим в state.user и перезаписываем тот
+      же localStorage-ключ, что и setCredentials, — токен не трогаем.
+    */
+    updateUser(state, action: PayloadAction<Partial<AuthUser>>) {
+      if (!state.user) return
+      state.user = { ...state.user, ...action.payload }
+      try {
+        localStorage.setItem('dp_auth', JSON.stringify({ token: state.token, user: state.user }))
+      } catch {
+        // localStorage недоступен (приватный режим) — не критично
+      }
+    },
+
     logout(state) {
       state.token = null
       state.user = null
@@ -57,5 +71,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { setCredentials, logout } = authSlice.actions
+export const { setCredentials, updateUser, logout } = authSlice.actions
 export default authSlice.reducer

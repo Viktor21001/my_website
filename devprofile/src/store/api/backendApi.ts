@@ -1,6 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { RootState } from '../index'
-import type { AuthResponse, AuthUser, LoginPayload, RegisterPayload } from '../../types/auth'
+import type {
+  AuthResponse,
+  AuthUser,
+  ChangePasswordPayload,
+  LoginPayload,
+  RegisterPayload,
+  UpdateProfilePayload,
+} from '../../types/auth'
 import type {
   AgeGroup,
   BodyMeasurement,
@@ -47,6 +54,14 @@ export const backendApi = createApi({
       transformResponse: (raw: { user: AuthUser }) => raw.user,
     }),
 
+    updateProfile: builder.mutation<AuthUser, UpdateProfilePayload>({
+      query: (body) => ({ url: '/users/me', method: 'PATCH', body }),
+    }),
+
+    changePassword: builder.mutation<{ ok: boolean }, ChangePasswordPayload>({
+      query: (body) => ({ url: '/auth/change-password', method: 'POST', body }),
+    }),
+
     getMeasurements: builder.query<BodyMeasurement[], void>({
       query: () => '/measurements',
       providesTags: ['Measurements'],
@@ -91,6 +106,8 @@ export const {
   useRegisterMutation,
   useLoginMutation,
   useGetMeQuery,
+  useUpdateProfileMutation,
+  useChangePasswordMutation,
   useGetMeasurementsQuery,
   useAddMeasurementMutation,
   useGetInBodyResultsQuery,

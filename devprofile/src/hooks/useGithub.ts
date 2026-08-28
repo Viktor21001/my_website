@@ -31,7 +31,7 @@ type ActivityFeedItem = {
 // Хук для получения последних репозиториев с языками
 export function useRecentRepos() {
   const username = useAppSelector(
-    (state) => state.profile.user.socialLinks.github ?? ''
+    (state) => state.auth.user?.githubUsername ?? ''
   )
 
   /*
@@ -82,7 +82,7 @@ export function useRepoLanguages(fullName: string) {
 // Хук для ленты активности (коммиты, PR, создание репо)
 export function useActivityFeed() {
   const username = useAppSelector(
-    (state) => state.profile.user.socialLinks.github ?? ''
+    (state) => state.auth.user?.githubUsername ?? ''
   )
 
   const {
@@ -137,7 +137,7 @@ export function useActivityFeed() {
 // Хук для топ языков по всем репозиториям (для правой колонки)
 export function useTopLanguages() {
   const username = useAppSelector(
-    (state) => state.profile.user.socialLinks.github ?? ''
+    (state) => state.auth.user?.githubUsername ?? ''
   )
 
   const { data: repos = [], isLoading } = useGetRecentReposQuery(

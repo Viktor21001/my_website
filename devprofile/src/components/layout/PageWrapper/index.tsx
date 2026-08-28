@@ -7,25 +7,15 @@
 
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { useAppDispatch } from '../../../hooks/redux'
-import { toggleBackgroundEditor } from '../../../store/slices/uiSlice'
 import { fadeUpVariants, staggerContainerVariants, staggerItemVariants } from '../../../hooks/useAnimatedMount'
 
 interface PageWrapperProps {
-  header:        ReactNode
-  leftColumn:    ReactNode
-  rightColumn:   ReactNode
-  isOwnProfile?: boolean
+  header:      ReactNode
+  leftColumn:  ReactNode
+  rightColumn: ReactNode
 }
 
-export function PageWrapper({
-  header,
-  leftColumn,
-  rightColumn,
-  isOwnProfile = false,
-}: PageWrapperProps) {
-  const dispatch = useAppDispatch()
-
+export function PageWrapper({ header, leftColumn, rightColumn }: PageWrapperProps) {
   return (
     <div className="relative z-10 min-h-screen">
       <div className="max-w-[990px] mx-auto px-3 sm:px-4 pb-10">
@@ -39,23 +29,6 @@ export function PageWrapper({
         >
           {header}
         </motion.div>
-
-        {/* Кнопка фона — только владелец */}
-        {isOwnProfile && (
-          <motion.div
-            className="flex justify-end mb-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.25 }}
-          >
-            <button
-              onClick={() => dispatch(toggleBackgroundEditor())}
-              className="dp-btn-ghost text-xs"
-            >
-              🎨 Настроить фон
-            </button>
-          </motion.div>
-        )}
 
         {/*
           Адаптивный layout:

@@ -2,10 +2,8 @@ import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 
 /*
-  Расширяем uiSlice — добавляем состояние редактора фона.
-  Почему здесь а не в profileSlice?
-  "Открыта ли панель настройки" — это состояние интерфейса,
-  а не данные пользователя. Разделяем ответственности.
+  "Открыта ли панель настроек" — это состояние интерфейса, а не данные
+  пользователя. Разделяем ответственности.
 
   activeSection — та же логика: какая вкладка (Dev/Fitness) открыта
   сейчас — это состояние интерфейса, не данные профиля. Кладём сюда,
@@ -15,12 +13,12 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 export type ActiveSection = 'profile' | 'fitness'
 
 interface UiState {
-  isBackgroundEditorOpen: boolean
+  isSettingsOpen: boolean
   activeSection: ActiveSection
 }
 
 const initialState: UiState = {
-  isBackgroundEditorOpen: false,
+  isSettingsOpen: false,
   activeSection: 'profile',
 }
 
@@ -28,11 +26,11 @@ const uiSlice = createSlice({
   name: 'ui',
   initialState,
   reducers: {
-    toggleBackgroundEditor(state) {
-      state.isBackgroundEditorOpen = !state.isBackgroundEditorOpen
+    toggleSettings(state) {
+      state.isSettingsOpen = !state.isSettingsOpen
     },
-    setBackgroundEditorOpen(state, action: PayloadAction<boolean>) {
-      state.isBackgroundEditorOpen = action.payload
+    setSettingsOpen(state, action: PayloadAction<boolean>) {
+      state.isSettingsOpen = action.payload
     },
     setActiveSection(state, action: PayloadAction<ActiveSection>) {
       state.activeSection = action.payload
@@ -40,5 +38,5 @@ const uiSlice = createSlice({
   },
 })
 
-export const { toggleBackgroundEditor, setBackgroundEditorOpen, setActiveSection } = uiSlice.actions
+export const { toggleSettings, setSettingsOpen, setActiveSection } = uiSlice.actions
 export default uiSlice.reducer

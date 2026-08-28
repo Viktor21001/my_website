@@ -16,12 +16,13 @@ import { usePresence }    from './hooks/usePresence'
 import { usePageTitle } from './hooks/usePageTitle'
 import { useFitnessBadges } from './hooks/useFitnessBadges'
 import { useFitnessRating } from './hooks/useFitnessRating'
+import { useSyncAuthUser } from './hooks/useSyncAuthUser'
 
 import { useAppSelector, useAppDispatch } from './hooks/redux'
 import { logout } from './store/slices/authSlice'
+import { toggleSettings } from './store/slices/uiSlice'
 
 import { Background }       from './components/layout/Background'
-import { BackgroundEditor } from './components/layout/BackgroundEditor'
 import { PageWrapper }      from './components/layout/PageWrapper'
 import { SectionTabs }      from './components/layout/SectionTabs'
 import { ProfileHeader }    from './components/profile/ProfileHeader'
@@ -33,6 +34,7 @@ import { GithubStats }      from './components/stats/GithubStats'
 import { SteamStats }       from './components/stats/SteamStats'
 import { ComingSoon }       from './components/shared/ComingSoon'
 import { AuthGate }         from './components/auth/AuthGate'
+import { SettingsPanel }    from './components/settings/SettingsPanel'
 
 import { FitnessStatsStrip }    from './components/fitness/FitnessStatsStrip'
 import { WorkoutLog }           from './components/fitness/WorkoutLog'
@@ -55,6 +57,7 @@ function App() {
   usePageTitle()
   useFitnessBadges()
   useFitnessRating()
+  useSyncAuthUser()
 
   const activeSection = useAppSelector((state) => state.ui.activeSection)
   const token = useAppSelector((state) => state.auth.token)
@@ -65,8 +68,8 @@ function App() {
       {/* Слой 1: Фон — position fixed, за всем контентом */}
       <Background />
 
-      {/* Слой 2: Редактор фона — выезжает снизу поверх всего */}
-      <BackgroundEditor />
+      {/* Слой 2: Настройки профиля — выезжают снизу поверх всего */}
+      <SettingsPanel />
 
       {/* Слой 3: без аккаунта — экран входа/регистрации вместо профиля */}
       {!token && <AuthGate />}
@@ -79,9 +82,14 @@ function App() {
             <StatusBar />
             <div className="flex items-center justify-between">
               <SectionTabs />
-              <button onClick={() => dispatch(logout())} className="dp-btn-ghost text-xs mr-2">
-                Выйти
-              </button>
+              <div className="flex items-center gap-2 mr-2">
+                <button onClick={() => dispatch(toggleSettings())} className="dp-btn-ghost text-xs">
+                  ⚙ Настройки
+                </button>
+                <button onClick={() => dispatch(logout())} className="dp-btn-ghost text-xs">
+                  Выйти
+                </button>
+              </div>
             </div>
           </>
         }
