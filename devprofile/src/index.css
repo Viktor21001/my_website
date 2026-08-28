@@ -59,11 +59,19 @@
   --dp-transition-slow:300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ── Reset ── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/*
+  ── Reset ──
+  В слое base (Tailwind cascade layers), иначе безусловный margin:0
+  на * перебивает утилиты вроде mx-auto — неймспейс-слои Tailwind
+  всегда проигрывают неймспейс-слоям обычному CSS, независимо
+  от специфичности селектора.
+*/
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html {

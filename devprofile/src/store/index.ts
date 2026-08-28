@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import profileReducer from './slices/profileSlice'
 import uiReducer from './slices/uiSlice'
+import fitnessReducer from './slices/fitnessSlice'
 import { githubApi } from './api/githubApi'
 import { steamApi } from './api/steamApi'
 
@@ -14,6 +15,7 @@ export const store = configureStore({
   reducer: {
     profile: profileReducer,
     ui:      uiReducer,
+    fitness: fitnessReducer,
 
     // RTK Query хранит здесь кеш всех запросов
     [githubApi.reducerPath]: githubApi.reducer,

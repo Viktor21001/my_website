@@ -14,10 +14,15 @@ import { useBadges }      from './hooks/useBadges'
 import { useSmartStatus } from './hooks/useSmartStatus'
 import { usePresence }    from './hooks/usePresence'
 import { usePageTitle } from './hooks/usePageTitle'
+import { useFitnessBadges } from './hooks/useFitnessBadges'
+import { useFitnessRating } from './hooks/useFitnessRating'
+
+import { useAppSelector } from './hooks/redux'
 
 import { Background }       from './components/layout/Background'
 import { BackgroundEditor } from './components/layout/BackgroundEditor'
 import { PageWrapper }      from './components/layout/PageWrapper'
+import { SectionTabs }      from './components/layout/SectionTabs'
 import { ProfileHeader }    from './components/profile/ProfileHeader'
 import { StatusBar }        from './components/profile/StatusBar'
 import { BadgesRow }        from './components/profile/BadgesRow'
@@ -27,16 +32,29 @@ import { GithubStats }      from './components/stats/GithubStats'
 import { SteamStats }       from './components/stats/SteamStats'
 import { ComingSoon }       from './components/shared/ComingSoon'
 
+import { FitnessStatsStrip }    from './components/fitness/FitnessStatsStrip'
+import { WorkoutLog }           from './components/fitness/WorkoutLog'
+import { AgeGroupLeaderboard }  from './components/fitness/AgeGroupLeaderboard'
+import { ExerciseLibrary }      from './components/fitness/ExerciseLibrary'
+import { FitnessBadgesRow }     from './components/fitness/FitnessBadgesRow'
+import { WorkoutTimer }         from './components/fitness/WorkoutTimer'
+import { InBodyPanel }          from './components/fitness/InBodyPanel'
+
 function App() {
   /*
-    Три хука — три источника данных для статуса и бейджей.
-    Порядок важен: useSmartStatus читает Steam данные
-    которые уже начали загружаться в useBadges.
+    Хуки-источники данных для статуса, dev-бейджей и фитнес-рейтинга.
+    Порядок важен: useSmartStatus читает Steam данные, которые уже
+    начали загружаться в useBadges; useFitnessRating читает бейджи,
+    посчитанные useFitnessBadges (см. комментарии в самих хуках).
   */
   useBadges()
   useSmartStatus()
   usePresence()
   usePageTitle()
+  useFitnessBadges()
+  useFitnessRating()
+
+  const activeSection = useAppSelector((state) => state.ui.activeSection)
 
   return (
     <>
@@ -52,25 +70,48 @@ function App() {
           <>
             <ProfileHeader />
             <StatusBar />
+            <SectionTabs />
           </>
         }
 
         leftColumn={
-          <>
-            <BadgesRow />
-            <RecentActivity />
-            <ComingSoon title="Комментарии" icon="💬" />
-          </>
+          activeSection === 'profile' ? (
+            <>
+              <BadgesRow />
+              <RecentActivity />
+              <ComingSoon title="Комментарии" icon="💬" />
+            </>
+          ) : (
+            <>
+              <FitnessStatsStrip />
+              <WorkoutLog />
+              <AgeGroupLeaderboard />
+              <ExerciseLibrary />
+              <ComingSoon title="Хобби" icon="🎨" />
+              <ComingSoon title="Любимые фильмы" icon="🎬" />
+              <ComingSoon title="Игры и достижения" icon="🎮" />
+            </>
+          )
         }
 
         rightColumn={
-          <>
-            <GithubStats />
-            <SteamStats />
-            <FavoriteGames />
-            <ComingSoon title="Друзья"  icon="👥" />
-            <ComingSoon title="Группы"  icon="🏠" />
-          </>
+          activeSection === 'profile' ? (
+            <>
+              <GithubStats />
+              <SteamStats />
+              <FavoriteGames />
+              <ComingSoon title="Друзья"  icon="👥" />
+              <ComingSoon title="Группы"  icon="🏠" />
+            </>
+          ) : (
+            <>
+              <FitnessBadgesRow />
+              <WorkoutTimer />
+              <InBodyPanel />
+              <ComingSoon title="Регистрация" icon="📝" />
+              <ComingSoon title="Чаты" icon="💬" />
+            </>
+          )
         }
       />
     </>

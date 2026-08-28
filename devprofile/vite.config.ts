@@ -14,6 +14,10 @@ export default defineConfig({
   ],
 
   server: {
+    // По умолчанию Vite иногда слушает только IPv6 (::1) — если браузер
+    // резолвит localhost в 127.0.0.1, получаем ERR_CONNECTION_REFUSED.
+    // Явно слушаем IPv4-loopback, чтобы localhost всегда работал.
+    host: '127.0.0.1',
     proxy: {
       // Steam API не поддерживает CORS — браузер блокирует прямые запросы
       // Proxy решает это: запрос /steam-api/... идёт через наш сервер

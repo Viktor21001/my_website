@@ -15,7 +15,7 @@ export const fadeUpVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const },
   },
 }
 
@@ -43,7 +43,7 @@ export const staggerItemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const },
   },
 }
 
@@ -53,12 +53,12 @@ export const slideUpVariants = {
   visible: {
     y: 0,
     opacity: 1,
-    transition: { type: 'spring', damping: 28, stiffness: 280 },
+    transition: { type: 'spring' as const, damping: 28, stiffness: 280 },
   },
   exit: {
     y: '100%',
     opacity: 0,
-    transition: { duration: 0.22, ease: 'easeIn' },
+    transition: { duration: 0.22, ease: 'easeIn' as const },
   },
 }
 
@@ -69,6 +69,6 @@ export const tooltipVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.15, ease: 'easeOut' },
+    transition: { duration: 0.15, ease: 'easeOut' as const },
   },
 }

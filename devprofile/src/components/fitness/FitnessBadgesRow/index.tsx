@@ -1,29 +1,34 @@
+/*
+  FitnessBadgesRow — структурный клон components/profile/BadgesRow
+  под фитнес-бейджи (state.fitness.badges + FITNESS_BADGE_CONFIG).
+*/
+
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { useAppSelector } from '../../../hooks/redux'
-import { BADGE_CONFIG } from '../../../config/badges'
+import { FITNESS_BADGE_CONFIG } from '../../../config/fitnessBadges'
 import { staggerItemVariants, tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
-import type { Badge, BadgeId } from '../../../types/profile'
+import type { FitnessBadge, FitnessBadgeId } from '../../../types/fitness'
 
 const TOOLTIP_WIDTH = 192
 
-export function BadgesRow() {
-  const badges      = useAppSelector((state) => state.profile.user.badges)
+export function FitnessBadgesRow() {
+  const badges = useAppSelector((state) => state.fitness.badges)
   const unlockedIds = new Set(badges.map((b) => b.id))
-  const allIds      = Object.keys(BADGE_CONFIG) as BadgeId[]
+  const allIds = Object.keys(FITNESS_BADGE_CONFIG) as FitnessBadgeId[]
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
       <div className="dp-section-title">
-        Значки{' '}
-        <span style={{ color: 'var(--dp-accent)' }}>{badges.length}</span>
+        Достижения{' '}
+        <span style={{ color: 'var(--dp-green)' }}>{badges.length}</span>
         <span style={{ color: 'var(--dp-text-muted)' }}> / {allIds.length}</span>
       </div>
       <div className="p-3 flex flex-wrap gap-2">
         {allIds.map((id) => (
-          <BadgeItem
+          <FitnessBadgeItem
             key={id}
             id={id}
             badge={badges.find((b) => b.id === id)}
@@ -35,17 +40,17 @@ export function BadgesRow() {
   )
 }
 
-function BadgeItem({
+function FitnessBadgeItem({
   id,
   badge,
   isUnlocked,
 }: {
-  id: BadgeId
-  badge?: Badge
+  id: FitnessBadgeId
+  badge?: FitnessBadge
   isUnlocked: boolean
 }) {
   const [hovered, setHovered] = useState(false)
-  const config = BADGE_CONFIG[id]
+  const config = FITNESS_BADGE_CONFIG[id]
   const { triggerRef, position, show } = useTooltipPosition<HTMLDivElement>(TOOLTIP_WIDTH)
 
   return (
@@ -58,12 +63,12 @@ function BadgeItem({
       <motion.div
         className="w-12 h-12 flex items-center justify-center text-2xl rounded cursor-pointer select-none"
         style={{
-          background:  isUnlocked ? 'var(--dp-bg-card)' : 'rgba(0,0,0,0.2)',
-          border:      `1px solid ${isUnlocked ? 'var(--dp-border-light)' : 'var(--dp-border)'}`,
-          opacity:     isUnlocked ? 1 : 0.3,
-          filter:      isUnlocked ? 'none' : 'grayscale(1)',
+          background: isUnlocked ? 'var(--dp-bg-card)' : 'rgba(0,0,0,0.2)',
+          border: `1px solid ${isUnlocked ? 'var(--dp-border-light)' : 'var(--dp-border)'}`,
+          opacity: isUnlocked ? 1 : 0.3,
+          filter: isUnlocked ? 'none' : 'grayscale(1)',
           borderRadius: 'var(--dp-radius-md)',
-          boxShadow:   isUnlocked && hovered ? 'var(--dp-shadow-glow)' : 'none',
+          boxShadow: isUnlocked && hovered ? '0 0 24px rgba(139,195,74,0.3)' : 'none',
         }}
         whileHover={isUnlocked ? { scale: 1.18, y: -2 } : {}}
         whileTap={isUnlocked ? { scale: 0.92 } : {}}
@@ -79,9 +84,9 @@ function BadgeItem({
             bottom: position.bottom,
             left:   position.left,
             width:  TOOLTIP_WIDTH,
-            background:  'var(--dp-bg-panel)',
-            border:      '1px solid var(--dp-border-accent)',
-            boxShadow:   'var(--dp-shadow-lg)',
+            background: 'var(--dp-bg-panel)',
+            border: '1px solid var(--dp-border-accent)',
+            boxShadow: 'var(--dp-shadow-lg)',
             borderRadius: 'var(--dp-radius-md)',
           }}
           variants={tooltipVariants}
@@ -102,10 +107,7 @@ function BadgeItem({
             badge?.unlockedAt && (
               <div
                 className="text-xs mt-2 pt-2 font-mono"
-                style={{
-                  color:       'var(--dp-green)',
-                  borderTop:   '1px solid var(--dp-border)',
-                }}
+                style={{ color: 'var(--dp-green)', borderTop: '1px solid var(--dp-border)' }}
               >
                 ✓ {new Date(badge.unlockedAt).toLocaleDateString('ru-RU', {
                   day: 'numeric', month: 'short', year: 'numeric',
@@ -122,7 +124,7 @@ function BadgeItem({
           )}
         </motion.div>,
         document.body,
-        'dev-badge-tooltip'
+        'fitness-badge-tooltip'
       )}
     </div>
   )
