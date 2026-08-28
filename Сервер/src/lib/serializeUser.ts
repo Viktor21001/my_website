@@ -19,6 +19,7 @@ export function serializeUser(user: User) {
     createdAt: user.createdAt,
     githubUsername: user.githubUsername,
     steamId: user.steamId,
+    favoriteSteamAppIds: user.favoriteSteamAppIds,
     background: {
       type: user.backgroundType,
       url: user.backgroundUrl,

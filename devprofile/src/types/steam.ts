@@ -14,6 +14,14 @@ export interface SteamGame {
   lastPlayed?: number      // unix timestamp
 }
 
+// Достижения считаются по конкретной игре — сколько получено из скольки всего
+export interface GameAchievementSummary {
+  appId: number
+  gameName: string
+  achieved: number
+  total: number
+}
+
 export interface SteamPlayer {
   steamId: string
   personaName: string  // никнейм в Steam

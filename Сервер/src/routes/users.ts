@@ -18,10 +18,16 @@ interface BackgroundInput {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, githubUsername, steamId, background } = req.body ?? {}
+    const { displayName, avatar, bio, location, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
+    }
+    if (
+      favoriteSteamAppIds !== undefined &&
+      (!Array.isArray(favoriteSteamAppIds) || !favoriteSteamAppIds.every((id: unknown) => typeof id === 'number'))
+    ) {
+      throw new HttpError(400, 'Некорректный список любимых игр')
     }
 
     const data: Record<string, unknown> = {}
@@ -31,6 +37,8 @@ router.patch(
     if (location !== undefined) data.location = location || null
     if (githubUsername !== undefined) data.githubUsername = githubUsername || null
     if (steamId !== undefined) data.steamId = steamId || null
+    // Лимит в 7 проверяем и на сервере — не доверяем только клиентской валидации
+    if (favoriteSteamAppIds !== undefined) data.favoriteSteamAppIds = favoriteSteamAppIds.slice(0, 7)
 
     if (background !== undefined) {
       const bg = background as BackgroundInput

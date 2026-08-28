@@ -13,6 +13,7 @@ export interface AuthUser {
   createdAt: string
   githubUsername: string | null
   steamId: string | null
+  favoriteSteamAppIds: number[]
   background: BackgroundConfig
 }
 
@@ -24,6 +25,7 @@ export interface UpdateProfilePayload {
   location?: string | null
   githubUsername?: string | null
   steamId?: string | null
+  favoriteSteamAppIds?: number[]
   background?: BackgroundConfig
 }
 

@@ -13,13 +13,37 @@ import { useAppSelector } from './redux'
 import {
   useGetSteamPlayerQuery,
   useGetRecentGamesQuery,
-  useGetFavoriteGamesQuery,
+  useGetOwnedGamesQuery,
+  useGetFavoriteGamesAchievementsQuery,
 } from '../store/api/steamApi'
 import { SteamPersonaState } from '../types/steam'
+import type { SteamGame } from '../types/steam'
 import type { UserStatus } from '../types/profile'
+
+const DEFAULT_FAVORITES_COUNT = 4
 
 function useSteamId(): string {
   return useAppSelector((state) => state.auth.user?.steamId ?? '')
+}
+
+/*
+  Разбирает то, что пользователь мог вписать в поле Steam в Настройках:
+  готовый SteamID64, ссылку на профиль (/profiles/<id> или /id/<vanity>)
+  или просто логин. Возвращает либо уже готовый id, либо vanity-имя,
+  которое ещё нужно резолвить через ResolveVanityURL.
+*/
+export function parseSteamInput(input: string): { kind: 'id'; value: string } | { kind: 'vanity'; value: string } {
+  const trimmed = input.trim().replace(/\/+$/, '')
+
+  const profilesMatch = trimmed.match(/steamcommunity\.com\/profiles\/(\d{17})/)
+  if (profilesMatch) return { kind: 'id', value: profilesMatch[1] }
+
+  const idUrlMatch = trimmed.match(/steamcommunity\.com\/id\/([^/?#]+)/)
+  if (idUrlMatch) return { kind: 'vanity', value: idUrlMatch[1] }
+
+  if (/^\d{17}$/.test(trimmed)) return { kind: 'id', value: trimmed }
+
+  return { kind: 'vanity', value: trimmed }
 }
 
 // Статус Steam → наш UserStatus
@@ -87,17 +111,56 @@ export function useRecentGames() {
   return { games: gamesWithTime, isLoading, isError }
 }
 
-// Хук любимых игр (топ по времени)
-export function useFavoriteGames() {
+// Хук всей библиотеки игрока — для реального счётчика и пикера любимых игр
+export function useOwnedGames() {
   const steamId = useSteamId()
 
   const {
     data: games = [],
     isLoading,
     isError,
-  } = useGetFavoriteGamesQuery(steamId, { skip: !steamId })
+  } = useGetOwnedGamesQuery(steamId, { skip: !steamId })
 
   return { games, isLoading, isError }
+}
+
+/*
+  Хук любимых игр. Если пользователь сам выбрал их в пикере
+  (state.auth.user.favoriteSteamAppIds) — показываем именно их, в том
+  порядке, в котором он их выбирал. Если ещё не выбирал — фолбэк на
+  старое поведение: топ-N по наработанному времени.
+*/
+export function useFavoriteGames() {
+  const favoriteAppIds = useAppSelector((state) => state.auth.user?.favoriteSteamAppIds ?? [])
+  const { games: allGames, isLoading, isError } = useOwnedGames()
+
+  const games: SteamGame[] =
+    favoriteAppIds.length > 0
+      ? favoriteAppIds
+          .map((id) => allGames.find((g) => g.appId === id))
+          .filter((g): g is SteamGame => g !== undefined)
+      : allGames.slice(0, DEFAULT_FAVORITES_COUNT)
+
+  return { games, allGames, isLoading, isError }
+}
+
+// Хук достижений по любимым играм (топ-4 по времени)
+export function useFavoriteGamesAchievements() {
+  const steamId = useSteamId()
+  const { games } = useFavoriteGames()
+
+  const gameRefs = games.map((g) => ({ appId: g.appId, name: g.name }))
+
+  const {
+    data: achievements = [],
+    isLoading,
+    isError,
+  } = useGetFavoriteGamesAchievementsQuery(
+    { steamId, games: gameRefs },
+    { skip: !steamId || gameRefs.length === 0 }
+  )
+
+  return { achievements, isLoading, isError }
 }
 
 // Утилита: минуты → "Xч Yмин" или "Xч"

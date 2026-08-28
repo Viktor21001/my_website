@@ -5,7 +5,7 @@
   Аналог блока "Игры 202" в правой колонке Steam профиля.
 */
 
-import { useSteamPlayer, useFavoriteGames } from '../../../hooks/useSteam'
+import { useSteamPlayer, useOwnedGames } from '../../../hooks/useSteam'
 import { SkeletonCard } from '../../shared/Card'
 
 const STATUS_LABELS: Record<number, string> = {
@@ -17,7 +17,9 @@ const STATUS_LABELS: Record<number, string> = {
 
 export function SteamStats() {
   const { player, isLoading: playerLoading } = useSteamPlayer()
-  const { games, isLoading: gamesLoading }   = useFavoriteGames()
+  // Раньше здесь был useFavoriteGames() (топ-4) — счётчик показывал 4
+  // вместо реального размера библиотеки. Нужна вся библиотека.
+  const { games, isLoading: gamesLoading }   = useOwnedGames()
 
   if (playerLoading || gamesLoading) return <SkeletonCard />
 
@@ -61,7 +63,7 @@ export function SteamStats() {
             style={{
               background: 'var(--dp-bg-card)',
               border: '1px solid var(--dp-border)',
-              color: 'var(--dp-accent-green)',
+              color: 'var(--dp-green)',
             }}
           >
             🎮 {player.gameExtraInfo}

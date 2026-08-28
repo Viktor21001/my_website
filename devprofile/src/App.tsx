@@ -30,8 +30,10 @@ import { StatusBar }        from './components/profile/StatusBar'
 import { BadgesRow }        from './components/profile/BadgesRow'
 import { RecentActivity }   from './components/activity/RecentActivity'
 import { FavoriteGames }    from './components/activity/FavoriteGames'
+import { FavoriteGamesPicker } from './components/activity/FavoriteGamesPicker'
 import { GithubStats }      from './components/stats/GithubStats'
 import { SteamStats }       from './components/stats/SteamStats'
+import { SteamAchievements } from './components/stats/SteamAchievements'
 import { ComingSoon }       from './components/shared/ComingSoon'
 import { AuthGate }         from './components/auth/AuthGate'
 import { SettingsPanel }    from './components/settings/SettingsPanel'
@@ -68,8 +70,9 @@ function App() {
       {/* Слой 1: Фон — position fixed, за всем контентом */}
       <Background />
 
-      {/* Слой 2: Настройки профиля — выезжают снизу поверх всего */}
+      {/* Слой 2: Настройки профиля / выбор любимых игр — выезжают снизу поверх всего */}
       <SettingsPanel />
+      <FavoriteGamesPicker />
 
       {/* Слой 3: без аккаунта — экран входа/регистрации вместо профиля */}
       {!token && <AuthGate />}
@@ -109,7 +112,7 @@ function App() {
               <ExerciseLibrary />
               <ComingSoon title="Хобби" icon="🎨" />
               <ComingSoon title="Любимые фильмы" icon="🎬" />
-              <ComingSoon title="Игры и достижения" icon="🎮" />
+              <SteamAchievements />
             </>
           )
         }

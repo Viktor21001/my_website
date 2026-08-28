@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import type { SteamPlayer, SteamGame } from '../../types/steam'
+import type { SteamPlayer, SteamGame, GameAchievementSummary } from '../../types/steam'
 
 /*
   baseUrl: '/steam-api' — запросы идут через Vite proxy.
@@ -56,14 +56,19 @@ export const steamApi = createApi({
         })),
     }),
 
-    // Топ-4 игры по суммарному времени — для блока "Любимые игры"
-    getFavoriteGames: builder.query<SteamGame[], string>({
+    /*
+      Вся библиотека игрока, отсортированная по времени по убыванию.
+      Раньше здесь резался топ-4 (getFavoriteGames) — из-за этого счётчик
+      "игр в библиотеке" в SteamStats показывал 4 вместо реального размера
+      библиотеки. Теперь отдаём всё целиком, а топ/выбор — уже на клиенте
+      (см. useFavoriteGames в hooks/useSteam.ts).
+    */
+    getOwnedGames: builder.query<SteamGame[], string>({
       query: (steamId) =>
         `/IPlayerService/GetOwnedGames/v1/?key=${KEY}&steamid=${steamId}&include_appinfo=true`,
       transformResponse: (raw: any): SteamGame[] =>
         (raw.response.games ?? [])
           .sort((a: any, b: any) => b.playtime_forever - a.playtime_forever)
-          .slice(0, 4)
           .map((g: any) => ({
             appId:           g.appid,
             name:            g.name,
@@ -73,11 +78,58 @@ export const steamApi = createApi({
           })),
     }),
 
+    /*
+      Резолвинг логина/vanity-URL (steamcommunity.com/id/<это>) в SteamID64.
+      Нужен потому что настройки профиля принимают логин, а все остальные
+      методы API работают только с числовым SteamID64.
+    */
+    resolveVanityUrl: builder.query<string, string>({
+      query: (vanityUrl) =>
+        `/ISteamUser/ResolveVanityURL/v1/?key=${KEY}&vanityurl=${encodeURIComponent(vanityUrl)}`,
+      transformResponse: (raw: any): string => {
+        if (raw.response.success !== 1) {
+          throw new Error('Профиль не найден — проверь логин Steam')
+        }
+        return raw.response.steamid
+      },
+    }),
+
+    /*
+      Достижения — эндпоинт Steam принимает только один appid за раз,
+      общего метода "достижения по всем играм" нет. Поэтому здесь не
+      обычный query, а queryFn: делаем по запросу на каждую любимую игру
+      и агрегируем. Игры без статистики (achieved.length === 0) или
+      с закрытой приватностью — просто пропускаем, а не падаем всем списком.
+    */
+    getFavoriteGamesAchievements: builder.query<
+      GameAchievementSummary[],
+      { steamId: string; games: { appId: number; name: string }[] }
+    >({
+      queryFn: async ({ steamId, games }, _api, _extraOptions, baseQuery) => {
+        const results = await Promise.all(
+          games.map(async (g) => {
+            const res = await baseQuery(
+              `/ISteamUserStats/GetPlayerAchievements/v0001/?key=${KEY}&steamid=${steamId}&appid=${g.appId}`
+            )
+            if (res.error) return null
+            const list = (res.data as any)?.playerstats?.achievements
+            if (!Array.isArray(list) || list.length === 0) return null
+            const achieved = list.filter((a: any) => a.achieved === 1).length
+            return { appId: g.appId, gameName: g.name, achieved, total: list.length }
+          })
+        )
+        return { data: results.filter((r): r is GameAchievementSummary => r !== null) }
+      },
+    }),
+
   }),
 })
 
 export const {
   useGetSteamPlayerQuery,
   useGetRecentGamesQuery,
-  useGetFavoriteGamesQuery,
+  useGetOwnedGamesQuery,
+  useResolveVanityUrlQuery,
+  useLazyResolveVanityUrlQuery,
+  useGetFavoriteGamesAchievementsQuery,
 } = steamApi

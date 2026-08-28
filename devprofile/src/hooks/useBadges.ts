@@ -16,7 +16,7 @@ import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from './redux'
 import { setBadges, setLevel } from '../store/slices/profileSlice'
 import { useGetRecentReposQuery, useGetEventsQuery, useGetProfileQuery } from '../store/api/githubApi'
-import { useGetFavoriteGamesQuery } from '../store/api/steamApi'
+import { useGetOwnedGamesQuery } from '../store/api/steamApi'
 import { makeBadge } from '../config/badges'
 import type { Badge } from '../types/profile'
 import { XP_PER_LEVEL } from '../config/constants'
@@ -35,7 +35,9 @@ export function useBadges() {
   const { data: repos   } = useGetRecentReposQuery(githubUsername, { skip: !githubUsername })
   const { data: events  } = useGetEventsQuery(githubUsername,      { skip: !githubUsername })
   const { data: profile } = useGetProfileQuery(githubUsername,     { skip: !githubUsername })
-  const { data: games   } = useGetFavoriteGamesQuery(steamId,      { skip: !steamId })
+  // Вся библиотека, а не топ-4 "любимых" — иначе Геймер/Хардкор считались
+  // по заниженному суммарному времени, если у аккаунта больше 4 игр
+  const { data: games   } = useGetOwnedGamesQuery(steamId,         { skip: !steamId })
 
   useEffect(() => {
     /*

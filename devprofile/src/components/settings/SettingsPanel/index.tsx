@@ -8,64 +8,28 @@
   так меньше риска затереть одно поле пока правишь другое.
 */
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux'
 import { setSettingsOpen } from '../../../store/slices/uiSlice'
 import { useUpdateProfile } from '../../../hooks/useProfile'
+import { useModalHistoryClose } from '../../../hooks/useModalHistoryClose'
 import { useChangePasswordMutation } from '../../../store/api/backendApi'
+import { useLazyResolveVanityUrlQuery } from '../../../store/api/steamApi'
+import { parseSteamInput } from '../../../hooks/useSteam'
 import { BACKGROUND_PRESETS } from '../../../config/constants'
 import { slideUpVariants } from '../../../hooks/useAnimatedMount'
 import { extractApiError } from '../../../utils/apiError'
 import type { AuthUser } from '../../../types/auth'
 import { DEFAULT_BACKGROUND, type BackgroundConfig } from '../../../types/profile'
 
-// Метка на history-записи, которую сами же и запушили при открытии панели
-const HISTORY_MARKER = 'settings-panel'
-
 export function SettingsPanel() {
   const dispatch = useAppDispatch()
   const isOpen = useAppSelector((state) => state.ui.isSettingsOpen)
   const user = useAppSelector((state) => state.auth.user)
 
-  /*
-    Без этого браузерная кнопка "назад" при открытой панели уводит
-    со всего сайта (SPA без роутера — URL не менялся, значит "назад"
-    улетает в историю ДО сайта), а не просто закрывает настройки.
-    Пушим отдельную запись при открытии — "назад" вернётся на неё же
-    (popstate) и просто закроет панель, оставаясь на странице.
-  */
-  useEffect(() => {
-    if (!isOpen) return
-
-    window.history.pushState({ modal: HISTORY_MARKER }, '')
-
-    function handlePopState() {
-      dispatch(setSettingsOpen(false))
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [isOpen, dispatch])
-
-  function close() {
-    // Если стоим на запушенной записи — уходим "назад" с неё, а не вперёд
-    // новой; popstate-обработчик выше сам закроет панель.
-    if (window.history.state?.modal === HISTORY_MARKER) {
-      window.history.back()
-    } else {
-      dispatch(setSettingsOpen(false))
-    }
-  }
-
-  useEffect(() => {
-    if (!isOpen) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  const onClose = useCallback(() => dispatch(setSettingsOpen(false)), [dispatch])
+  const close = useModalHistoryClose(isOpen, onClose, 'settings-panel')
 
   return (
     <AnimatePresence>
@@ -257,13 +221,39 @@ function ConnectedAccountsSection({ user }: { user: AuthUser }) {
   const [githubUsername, setGithubUsername] = useState(user.githubUsername ?? '')
   const [steamId, setSteamId] = useState(user.steamId ?? '')
   const [updateProfile, { isLoading, error }] = useUpdateProfile()
+  const [resolveVanityUrl, { isFetching: isResolving }] = useLazyResolveVanityUrlQuery()
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setSaved(false)
+    setResolveError(null)
+
+    /*
+      Поле принимает логин/ссылку на профиль, а не только готовый
+      SteamID64 — резолвим через Steam Web API перед сохранением,
+      чтобы дальше по коду (games/status/achievements) везде был
+      уже готовый числовой id.
+    */
+    let resolvedSteamId = steamId
+    if (steamId) {
+      const parsed = parseSteamInput(steamId)
+      if (parsed.kind === 'vanity') {
+        try {
+          resolvedSteamId = await resolveVanityUrl(parsed.value).unwrap()
+        } catch (err) {
+          setResolveError(extractApiError(err, 'Профиль Steam не найден — проверь логин'))
+          return
+        }
+      } else {
+        resolvedSteamId = parsed.value
+      }
+    }
+
     try {
-      await updateProfile({ githubUsername, steamId })
+      await updateProfile({ githubUsername, steamId: resolvedSteamId })
+      setSteamId(resolvedSteamId)
       setSaved(true)
     } catch {
       // ошибка уже отражена через error ниже
@@ -279,13 +269,14 @@ function ConnectedAccountsSection({ user }: { user: AuthUser }) {
           value={githubUsername} onChange={(e) => setGithubUsername(e.target.value)}
         />
         <input
-          type="text" className="dp-input" placeholder="Steam ID (64-битный)"
+          type="text" className="dp-input" placeholder="Steam: логин, ссылка на профиль или SteamID64"
           value={steamId} onChange={(e) => setSteamId(e.target.value)}
         />
+        {resolveError && <div className="dp-error">{resolveError}</div>}
         {error && <div className="dp-error">{extractApiError(error, 'Не удалось сохранить')}</div>}
         <div className="flex items-center gap-2">
-          <button type="submit" className="dp-btn-primary text-xs self-start" disabled={isLoading}>
-            {isLoading ? 'Сохраняем…' : 'Сохранить'}
+          <button type="submit" className="dp-btn-primary text-xs self-start" disabled={isLoading || isResolving}>
+            {isResolving ? 'Ищем профиль…' : isLoading ? 'Сохраняем…' : 'Сохранить'}
           </button>
           {saved && <span className="text-xs" style={{ color: 'var(--dp-green)' }}>✓ Сохранено</span>}
         </div>

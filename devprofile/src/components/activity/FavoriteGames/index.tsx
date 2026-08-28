@@ -8,9 +8,12 @@
 */
 
 import { useFavoriteGames, formatPlaytime } from '../../../hooks/useSteam'
+import { useAppDispatch } from '../../../hooks/redux'
+import { toggleFavoriteGamesPicker } from '../../../store/slices/uiSlice'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
 
 export function FavoriteGames() {
+  const dispatch = useAppDispatch()
   const { games, isLoading, isError } = useFavoriteGames()
 
   if (isLoading) return <SkeletonCard />
@@ -25,8 +28,21 @@ export function FavoriteGames() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">
-        Любимые игры
+      <div
+        className="flex items-center justify-between"
+        style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--dp-border)' }}
+      >
+        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
+          Любимые игры
+        </span>
+        <button
+          onClick={() => dispatch(toggleFavoriteGamesPicker())}
+          title="Выбрать любимые игры"
+          className="mr-3"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dp-text-secondary)', fontSize: 13 }}
+        >
+          👁
+        </button>
       </div>
 
       {games.length === 0 ? (
