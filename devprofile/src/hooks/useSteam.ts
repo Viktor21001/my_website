@@ -15,7 +15,7 @@ import {
   useGetRecentGamesQuery,
   useGetOwnedGamesQuery,
   useGetWishlistCountQuery,
-  useGetFavoriteGamesAchievementsQuery,
+  useGetGamesAchievementsQuery,
 } from '../store/api/steamApi'
 import { SteamPersonaState } from '../types/steam'
 import type { SteamGame } from '../types/steam'
@@ -98,11 +98,22 @@ export function useRecentGames() {
   } = useGetRecentGamesQuery(steamId, { skip: !steamId })
 
   /*
+    GetRecentlyPlayedGames не отдаёт дату последнего запуска (в отличие
+    от GetOwnedGames, где есть rtime_last_played) — подмешиваем её из
+    полной библиотеки по appId. useOwnedGames уже используется другими
+    панелями (SteamStats, FavoriteGames), так что RTK Query обычно
+    отдаёт готовый кеш без лишнего запроса.
+  */
+  const { games: ownedGames } = useOwnedGames()
+  const lastPlayedByAppId = new Map(ownedGames.map((g) => [g.appId, g.lastPlayed]))
+
+  /*
     Форматируем время для отображения.
     Steam хранит время в минутах — переводим в часы.
   */
   const gamesWithTime = games.map((game) => ({
     ...game,
+    lastPlayed: game.lastPlayed ?? lastPlayedByAppId.get(game.appId),
     hoursTotal: Math.floor(game.playtimeForever / 60),
     hours2Weeks: game.playtime2Weeks
       ? Math.floor(game.playtime2Weeks / 60)
@@ -164,10 +175,10 @@ export function useFavoriteGames() {
   return { games, allGames, isLoading, isError }
 }
 
-// Хук достижений по любимым играм (топ-4 по времени)
-export function useFavoriteGamesAchievements() {
+// Хук достижений по недавно сыгранным играм (тем же, что в useRecentGames)
+export function useRecentGamesAchievements() {
   const steamId = useSteamId()
-  const { games } = useFavoriteGames()
+  const { games } = useRecentGames()
 
   const gameRefs = games.map((g) => ({ appId: g.appId, name: g.name }))
 
@@ -175,7 +186,7 @@ export function useFavoriteGamesAchievements() {
     data: achievements = [],
     isLoading,
     isError,
-  } = useGetFavoriteGamesAchievementsQuery(
+  } = useGetGamesAchievementsQuery(
     { steamId, games: gameRefs },
     { skip: !steamId || gameRefs.length === 0 }
   )

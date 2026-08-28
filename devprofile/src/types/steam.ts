@@ -20,6 +20,8 @@ export interface GameAchievementSummary {
   gameName: string
   achieved: number
   total: number
+  // Иконки последних полученных достижений (самые новые первыми), не больше MAX_ACHIEVEMENT_ICONS — для превью в списке
+  unlockedIcons: string[]
 }
 
 export interface SteamPlayer {

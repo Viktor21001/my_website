@@ -1,81 +1,128 @@
 /*
-  SteamAchievements — достижения по любимым играм (топ-4 по времени).
-  Steam Web API не даёt единый метод "достижения по всем играм", поэтому
+  SteamAchievements — "Недавняя активность" в стиле профиля Steam:
+  недавно сыгранные игры (не любимые — это отдельный, вручную выбранный
+  список на Dev-вкладке) с прогрессом по достижениям под каждой игрой.
+
+  Steam Web API не даёт единый метод "достижения по всем играм", поэтому
   список игр и сами достижения запрашиваются по одному эндпоинту на игру
-  (см. useFavoriteGamesAchievements) — здесь просто сводим их вместе для
-  отображения.
+  (см. useRecentGamesAchievements) — здесь просто сводим их вместе.
 */
 
 import { motion } from 'framer-motion'
-import { useFavoriteGames, useFavoriteGamesAchievements } from '../../../hooks/useSteam'
+import { useRecentGames, useRecentGamesAchievements, formatPlaytime, formatLastPlayed } from '../../../hooks/useSteam'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
-import { SkeletonCard, EmptyCard } from '../../shared/Card'
+import { SkeletonCard } from '../../shared/Card'
 
 export function SteamAchievements() {
-  const { games, isLoading: gamesLoading } = useFavoriteGames()
-  const { achievements, isLoading: achievementsLoading } = useFavoriteGamesAchievements()
+  const { games, isLoading: gamesLoading } = useRecentGames()
+  const { achievements } = useRecentGamesAchievements()
 
-  if (gamesLoading || achievementsLoading) return <SkeletonCard />
-  if (games.length === 0) return null // Steam не настроен
+  if (gamesLoading) return <SkeletonCard />
+  if (games.length === 0) return null // Steam не настроен либо нет активности за 2 недели
+
+  const totalMinutes2Weeks = games.reduce((sum, g) => sum + (g.playtime2Weeks ?? 0), 0)
 
   return (
-    <motion.div className="dp-panel" variants={staggerItemVariants}>
-      <div className="dp-section-title">Игры и достижения</div>
+    <motion.div className="dp-panel overflow-hidden" variants={staggerItemVariants}>
+      <div
+        className="flex items-center justify-between"
+        style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--dp-border)' }}
+      >
+        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
+          Недавняя активность
+        </span>
+        {totalMinutes2Weeks > 0 && (
+          <span className="text-xs mr-3" style={{ color: 'var(--dp-text-muted)' }}>
+            {formatPlaytime(totalMinutes2Weeks)} за последние 2 недели
+          </span>
+        )}
+      </div>
 
-      {achievements.length === 0 ? (
-        <EmptyCard message="Нет данных о достижениях — у любимых игр их нет либо профиль приватный" />
-      ) : (
-        <div className="flex flex-col">
-          {achievements.map((a) => {
-            const game = games.find((g) => g.appId === a.appId)
-            const percent = a.total > 0 ? Math.round((a.achieved / a.total) * 100) : 0
+      <div className="flex flex-col">
+        {games.map((game) => {
+          const gameAchievements = achievements.find((a) => a.appId === game.appId)
+          const percent = gameAchievements && gameAchievements.total > 0
+            ? Math.round((gameAchievements.achieved / gameAchievements.total) * 100)
+            : 0
+          const hiddenAchievedCount = gameAchievements
+            ? gameAchievements.achieved - gameAchievements.unlockedIcons.length
+            : 0
 
-            return (
-              <div
-                key={a.appId}
-                className="flex items-center gap-3 p-3"
-                style={{ borderBottom: '1px solid var(--dp-border)' }}
-              >
+          return (
+            <div key={game.appId} className="p-3" style={{ borderBottom: '1px solid var(--dp-border)' }}>
+              <div className="flex gap-3">
                 <div
-                  className="shrink-0 rounded overflow-hidden"
-                  style={{ width: 46, height: 46, background: 'var(--dp-border)', borderRadius: 'var(--dp-radius-sm)' }}
+                  className="shrink-0 overflow-hidden rounded"
+                  style={{ width: 92, height: 43, background: 'var(--dp-border)', borderRadius: 'var(--dp-radius-sm)' }}
                 >
-                  {game && (
-                    <img
-                      src={game.imgIconUrl}
-                      alt={a.gameName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                    />
-                  )}
+                  <img
+                    src={game.imgLogoUrl}
+                    alt={game.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate" style={{ color: 'var(--dp-text-primary)' }}>
-                    {a.gameName}
-                  </div>
-                  <div
-                    className="h-1.5 rounded-full overflow-hidden mt-1.5"
-                    style={{ background: 'var(--dp-border)' }}
-                  >
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${percent}%`, background: 'var(--dp-accent)' }}
-                    />
+                  <div className="text-sm font-medium truncate" style={{ color: 'var(--dp-text-primary)' }}>
+                    {game.name}
                   </div>
                 </div>
 
                 <div className="shrink-0 text-right">
                   <div className="text-xs font-mono font-medium" style={{ color: 'var(--dp-text-code)' }}>
-                    {a.achieved}/{a.total}
+                    {formatPlaytime(game.playtimeForever)} всего
                   </div>
-                  <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>{percent}%</div>
+                  {game.lastPlayed && (
+                    <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>
+                      последний запуск {formatLastPlayed(game.lastPlayed)}
+                    </div>
+                  )}
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
+
+              {gameAchievements && gameAchievements.total > 0 && (
+                <div className="mt-2.5 flex items-center gap-3">
+                  <span className="text-xs shrink-0" style={{ color: 'var(--dp-text-secondary)' }}>
+                    Достижения
+                  </span>
+                  <span className="text-xs shrink-0 font-mono" style={{ color: 'var(--dp-text-code)' }}>
+                    {gameAchievements.achieved} из {gameAchievements.total}
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--dp-border)' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${percent}%`, background: 'var(--dp-accent)' }}
+                    />
+                  </div>
+                  {gameAchievements.unlockedIcons.length > 0 && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {gameAchievements.unlockedIcons.map((icon, i) => (
+                        <img
+                          key={i}
+                          src={icon}
+                          alt=""
+                          className="rounded-sm"
+                          style={{ width: 24, height: 24, background: 'var(--dp-border)' }}
+                          onError={(e) => { e.currentTarget.style.display = 'none' }}
+                        />
+                      ))}
+                      {hiddenAchievedCount > 0 && (
+                        <span
+                          className="text-xs flex items-center justify-center rounded-sm shrink-0"
+                          style={{ width: 24, height: 24, background: 'var(--dp-bg-card)', color: 'var(--dp-text-muted)' }}
+                        >
+                          +{hiddenAchievedCount}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </motion.div>
   )
 }

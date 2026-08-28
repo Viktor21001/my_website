@@ -11,6 +11,9 @@ import type { SteamPlayer, SteamGame, GameAchievementSummary } from '../../types
 */
 const KEY = import.meta.env.VITE_STEAM_API_KEY as string
 
+// Сколько иконок последних полученных достижений показываем в превью — дальше "+N" в UI
+const MAX_ACHIEVEMENT_ICONS = 5
+
 export const steamApi = createApi({
   reducerPath: 'steamApi',
 
@@ -82,6 +85,7 @@ export const steamApi = createApi({
             imgIconUrl:      `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg`,
             imgLogoUrl:      `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_184x69.jpg`,
             playtimeForever: g.playtime_forever,
+            lastPlayed:      g.rtime_last_played,
           })),
     }),
 
@@ -115,27 +119,51 @@ export const steamApi = createApi({
     }),
 
     /*
-      Достижения — эндпоинт Steam принимает только один appid за раз,
-      общего метода "достижения по всем играм" нет. Поэтому здесь не
-      обычный query, а queryFn: делаем по запросу на каждую любимую игру
-      и агрегируем. Игры без статистики (achieved.length === 0) или
-      с закрытой приватностью — просто пропускаем, а не падаем всем списком.
+      Достижения по списку игр (используется для недавно сыгранных —
+      см. useRecentGamesAchievements). Эндпоинт Steam принимает только
+      один appid за раз, общего метода "достижения по всем играм" нет.
+      Поэтому здесь не обычный query, а queryFn: на каждую игру делаем
+      два запроса — GetPlayerAchievements (что получено) и
+      GetSchemaForGame (иконки достижений, привязаны к apiname, а не
+      к игроку) — и склеиваем. Игры без статистики или с закрытой
+      приватностью просто пропускаем, а не падаем всем списком.
     */
-    getFavoriteGamesAchievements: builder.query<
+    getGamesAchievements: builder.query<
       GameAchievementSummary[],
       { steamId: string; games: { appId: number; name: string }[] }
     >({
       queryFn: async ({ steamId, games }, _api, _extraOptions, baseQuery) => {
         const results = await Promise.all(
           games.map(async (g) => {
-            const res = await baseQuery(
-              `/ISteamUserStats/GetPlayerAchievements/v0001/?key=${KEY}&steamid=${steamId}&appid=${g.appId}`
-            )
-            if (res.error) return null
-            const list = (res.data as any)?.playerstats?.achievements
+            const [achRes, schemaRes] = await Promise.all([
+              baseQuery(`/ISteamUserStats/GetPlayerAchievements/v0001/?key=${KEY}&steamid=${steamId}&appid=${g.appId}`),
+              baseQuery(`/ISteamUserStats/GetSchemaForGame/v2/?key=${KEY}&appid=${g.appId}`),
+            ])
+            if (achRes.error) return null
+            const list = (achRes.data as any)?.playerstats?.achievements
             if (!Array.isArray(list) || list.length === 0) return null
-            const achieved = list.filter((a: any) => a.achieved === 1).length
-            return { appId: g.appId, gameName: g.name, achieved, total: list.length }
+
+            const schemaList = (schemaRes.data as any)?.game?.availableGameStats?.achievements ?? []
+            const iconByApiName = new Map<string, string>(
+              schemaList.map((s: any) => [s.name, s.icon])
+            )
+
+            const achievedSorted = list
+              .filter((a: any) => a.achieved === 1)
+              .sort((a: any, b: any) => (b.unlocktime ?? 0) - (a.unlocktime ?? 0))
+
+            const unlockedIcons = achievedSorted
+              .map((a: any) => iconByApiName.get(a.apiname))
+              .filter((url: string | undefined): url is string => Boolean(url))
+              .slice(0, MAX_ACHIEVEMENT_ICONS)
+
+            return {
+              appId: g.appId,
+              gameName: g.name,
+              achieved: achievedSorted.length,
+              total: list.length,
+              unlockedIcons,
+            }
           })
         )
         return { data: results.filter((r): r is GameAchievementSummary => r !== null) }
@@ -152,5 +180,5 @@ export const {
   useGetWishlistCountQuery,
   useResolveVanityUrlQuery,
   useLazyResolveVanityUrlQuery,
-  useGetFavoriteGamesAchievementsQuery,
+  useGetGamesAchievementsQuery,
 } = steamApi
