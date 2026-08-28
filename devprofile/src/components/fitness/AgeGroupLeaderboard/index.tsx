@@ -3,17 +3,16 @@ import { motion } from 'framer-motion'
 import { useAppSelector } from '../../../hooks/redux'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { AGE_GROUPS, AGE_GROUP_LABELS } from '../../../config/fitnessConstants'
-import { CURRENT_USER_AGE_GROUP } from '../../../mocks/fitnessMockData'
+import { useLeaderboard } from '../../../hooks/useFitnessData'
 import { EmptyCard } from '../../shared/Card'
 import type { AgeGroup } from '../../../types/fitness'
 
 export function AgeGroupLeaderboard() {
-  const [ageGroup, setAgeGroup] = useState<AgeGroup>(CURRENT_USER_AGE_GROUP)
-  const leaderboard = useAppSelector((state) => state.fitness.leaderboard)
+  const myAgeGroup = useAppSelector((state) => state.auth.user?.ageGroup)
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>(myAgeGroup ?? '25-30')
 
-  const rows = leaderboard
-    .filter((e) => e.ageGroup === ageGroup)
-    .sort((a, b) => a.rank - b.rank)
+  // Сервер уже возвращает список отфильтрованным по группе и отсортированным по рангу
+  const { leaderboard: rows } = useLeaderboard(ageGroup)
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
@@ -60,12 +59,22 @@ export function AgeGroupLeaderboard() {
                 {entry.rank}
               </div>
 
-              <img
-                src={entry.avatar}
-                alt={entry.name}
-                className="w-8 h-8 rounded-sm shrink-0"
-                style={{ border: '1px solid var(--dp-border)' }}
-              />
+              {entry.avatar ? (
+                <img
+                  src={entry.avatar}
+                  alt={entry.name}
+                  className="w-8 h-8 rounded-sm shrink-0"
+                  style={{ border: '1px solid var(--dp-border)' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-sm shrink-0 flex items-center justify-center text-xs font-semibold"
+                  style={{ background: 'var(--dp-bg-card)', border: '1px solid var(--dp-border)', color: 'var(--dp-text-secondary)' }}
+                >
+                  {entry.name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
 
               <div className="flex-1 min-w-0">
                 <div

@@ -6,11 +6,13 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useAppSelector } from '../../../hooks/redux'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
+import { useWorkouts, useInBodyResults } from '../../../hooks/useFitnessData'
 import { WorkoutCard } from '../WorkoutCard'
 import { MeasurementsHistory } from '../MeasurementsHistory'
+import { AddWorkoutForm } from '../AddWorkoutForm'
+import { AddInBodyForm } from '../AddInBodyForm'
 import { EmptyCard } from '../../shared/Card'
 
 type Tab = 'workouts' | 'measurements' | 'inbody'
@@ -24,8 +26,8 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 export function WorkoutLog() {
   const [activeTab, setActiveTab] = useState<Tab>('workouts')
 
-  const workouts = useAppSelector((state) => state.fitness.workouts)
-  const inbodyResults = useAppSelector((state) => state.fitness.inbodyResults)
+  const { workouts } = useWorkouts()
+  const { inbodyResults } = useInBodyResults()
 
   const workoutsDesc = [...workouts].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -79,17 +81,22 @@ export function WorkoutLog() {
         transition={{ duration: 0.18 }}
       >
         {activeTab === 'workouts' && (
-          workoutsDesc.length === 0
-            ? <EmptyCard message="Тренировок пока нет" />
-            : workoutsDesc.map((w) => <WorkoutCard key={w.id} workout={w} />)
+          <div className="flex flex-col">
+            <AddWorkoutForm />
+            {workoutsDesc.length === 0
+              ? <EmptyCard message="Тренировок пока нет" />
+              : workoutsDesc.map((w) => <WorkoutCard key={w.id} workout={w} />)}
+          </div>
         )}
 
         {activeTab === 'measurements' && <MeasurementsHistory />}
 
         {activeTab === 'inbody' && (
-          inbodyDesc.length === 0
-            ? <EmptyCard message="Сканов InBody пока нет" />
-            : (
+          <div className="flex flex-col">
+            <AddInBodyForm />
+            {inbodyDesc.length === 0
+              ? <EmptyCard message="Сканов InBody пока нет" />
+              : (
               <div className="flex flex-col">
                 {inbodyDesc.map((r) => (
                   <div
@@ -109,7 +116,8 @@ export function WorkoutLog() {
                   </div>
                 ))}
               </div>
-            )
+            )}
+          </div>
         )}
       </motion.div>
     </motion.div>

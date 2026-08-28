@@ -93,6 +93,23 @@ export interface FitnessBadge {
   }
 }
 
+// Тела запросов на создание — то же самое, но без id (его назначает сервер)
+export type NewBodyMeasurement = Omit<BodyMeasurement, 'id'>
+export type NewInBodyResult = Omit<InBodyResult, 'id'>
+export interface NewWorkoutSet {
+  exerciseId: string
+  setNumber: number
+  reps: number
+  weightKg: number
+}
+export interface NewWorkout {
+  date: string
+  title: string
+  durationMin: number
+  notes?: string
+  sets: NewWorkoutSet[]
+}
+
 export interface LeaderboardEntry {
   rank: number
   userId: string

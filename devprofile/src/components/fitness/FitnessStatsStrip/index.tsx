@@ -9,11 +9,13 @@ import { useAppSelector } from '../../../hooks/redux'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { xpProgressPercent, XP_PER_LEVEL } from '../../../config/constants'
 import { longestDailyStreak } from '../../../utils/fitnessCalc'
+import { useWorkouts, useMeasurements, useInBodyResults } from '../../../hooks/useFitnessData'
 
 export function FitnessStatsStrip() {
-  const { workouts, measurements, inbodyResults, level, xp } = useAppSelector(
-    (state) => state.fitness
-  )
+  const { level, xp } = useAppSelector((state) => state.fitness)
+  const { workouts } = useWorkouts()
+  const { measurements } = useMeasurements()
+  const { inbodyResults } = useInBodyResults()
   const streakDays = longestDailyStreak(workouts.map((w) => w.date))
 
   const stats = [

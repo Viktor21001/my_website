@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { useAppSelector } from '../../../hooks/redux'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
+import { useExercises } from '../../../hooks/useFitnessData'
 import type { MuscleGroup } from '../../../types/fitness'
 
 const GROUP_LABELS: Record<MuscleGroup, string> = {
@@ -14,7 +14,7 @@ const GROUP_LABELS: Record<MuscleGroup, string> = {
 }
 
 export function ExerciseLibrary() {
-  const exercises = useAppSelector((state) => state.fitness.exercises)
+  const { exercises } = useExercises()
 
   const groups = (Object.keys(GROUP_LABELS) as MuscleGroup[])
     .map((g) => ({ group: g, items: exercises.filter((e) => e.muscleGroup === g) }))

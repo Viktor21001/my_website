@@ -21,17 +21,18 @@ import { setLevel } from '../store/slices/fitnessSlice'
 import { levelFromXp } from '../config/constants'
 import { ACTIVITY_WEIGHT, BODY_PROGRESS_WEIGHT, ACHIEVEMENT_WEIGHT } from '../config/fitnessConstants'
 import { longestDailyStreak, sortByDateAsc } from '../utils/fitnessCalc'
+import { useMeasurements, useWorkouts, useInBodyResults } from './useFitnessData'
 
 // Множитель перевода очков рейтинга в XP — подобран так, чтобы уровень
-// заметно рос уже на демонстрационных моковых данных
+// заметно рос на реалистичном объёме данных
 const XP_MULTIPLIER = 5
 
 export function useFitnessRating() {
   const dispatch = useAppDispatch()
 
-  const workouts = useAppSelector((state) => state.fitness.workouts)
-  const measurements = useAppSelector((state) => state.fitness.measurements)
-  const inbodyResults = useAppSelector((state) => state.fitness.inbodyResults)
+  const { workouts } = useWorkouts()
+  const { measurements } = useMeasurements()
+  const { inbodyResults } = useInBodyResults()
   const badges = useAppSelector((state) => state.fitness.badges)
 
   useEffect(() => {

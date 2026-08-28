@@ -17,7 +17,8 @@ import { usePageTitle } from './hooks/usePageTitle'
 import { useFitnessBadges } from './hooks/useFitnessBadges'
 import { useFitnessRating } from './hooks/useFitnessRating'
 
-import { useAppSelector } from './hooks/redux'
+import { useAppSelector, useAppDispatch } from './hooks/redux'
+import { logout } from './store/slices/authSlice'
 
 import { Background }       from './components/layout/Background'
 import { BackgroundEditor } from './components/layout/BackgroundEditor'
@@ -31,6 +32,7 @@ import { FavoriteGames }    from './components/activity/FavoriteGames'
 import { GithubStats }      from './components/stats/GithubStats'
 import { SteamStats }       from './components/stats/SteamStats'
 import { ComingSoon }       from './components/shared/ComingSoon'
+import { AuthGate }         from './components/auth/AuthGate'
 
 import { FitnessStatsStrip }    from './components/fitness/FitnessStatsStrip'
 import { WorkoutLog }           from './components/fitness/WorkoutLog'
@@ -55,6 +57,8 @@ function App() {
   useFitnessRating()
 
   const activeSection = useAppSelector((state) => state.ui.activeSection)
+  const token = useAppSelector((state) => state.auth.token)
+  const dispatch = useAppDispatch()
 
   return (
     <>
@@ -64,13 +68,21 @@ function App() {
       {/* Слой 2: Редактор фона — выезжает снизу поверх всего */}
       <BackgroundEditor />
 
-      {/* Слой 3: Основной контент с анимациями */}
+      {/* Слой 3: без аккаунта — экран входа/регистрации вместо профиля */}
+      {!token && <AuthGate />}
+
+      {token && (
       <PageWrapper
         header={
           <>
             <ProfileHeader />
             <StatusBar />
-            <SectionTabs />
+            <div className="flex items-center justify-between">
+              <SectionTabs />
+              <button onClick={() => dispatch(logout())} className="dp-btn-ghost text-xs mr-2">
+                Выйти
+              </button>
+            </div>
           </>
         }
 
@@ -108,12 +120,12 @@ function App() {
               <FitnessBadgesRow />
               <WorkoutTimer />
               <InBodyPanel />
-              <ComingSoon title="Регистрация" icon="📝" />
               <ComingSoon title="Чаты" icon="💬" />
             </>
           )
         }
       />
+      )}
     </>
   )
 }

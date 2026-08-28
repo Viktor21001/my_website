@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/*
+  Клиент использует строки с дефисом ('16-20', '20-25', ...) —
+  Prisma-enum так не может, идентификаторы не начинаются с цифры
+  и не содержат дефис. Значения здесь маппятся туда-обратно
+  в src/lib/ageGroup.ts, чтобы JSON API отдавал ровно тот формат,
+  который уже ожидает клиент (types/fitness.ts не меняется).
+*/
+enum AgeGroup {
+  AGE_16_20
+  AGE_20_25
+  AGE_25_30
+  AGE_30_35
+  AGE_35_40
+  AGE_40_PLUS
+}
+
+enum MuscleGroup {
+  chest
+  back
+  legs
+  shoulders
+  arms
+  core
+  cardio
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  avatar       String?
+  bio          String?
+  location     String?
+  ageGroup     AgeGroup @default(AGE_25_30)
+  createdAt    DateTime @default(now())
+
+  measurements  BodyMeasurement[]
+  inbodyResults InBodyResult[]
+  workouts      Workout[]
+}
+
+model BodyMeasurement {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date     DateTime
+  weightKg Float
+  chestCm  Float
+  waistCm  Float
+  hipsCm   Float
+  bicepCm  Float
+  thighCm  Float
+  notes    String?
+
+  @@index([userId])
+}
+
+model InBodyResult {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date                   DateTime
+  weightKg               Float
+  bodyFatPercent         Float
+  skeletalMuscleMassKg   Float
+  muscleMassKg           Float
+  bodyWaterPercent       Float
+  bmi                    Float
+  visceralFatLevel       Int
+  basalMetabolicRateKcal Int
+
+  @@index([userId])
+}
+
+// Общий каталог упражнений — один на всех, не привязан к User
+model Exercise {
+  id          String      @id @default(cuid())
+  name        String
+  muscleGroup MuscleGroup
+  equipment   String?
+  description String?
+
+  sets WorkoutSet[]
+}
+
+model Workout {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  title       String
+  durationMin Int
+  notes       String?
+
+  sets WorkoutSet[]
+
+  @@index([userId])
+}
+
+model WorkoutSet {
+  id         String   @id @default(cuid())
+  workoutId  String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  setNumber  Int
+  reps       Int
+  weightKg   Float
+
+  @@index([workoutId])
+}

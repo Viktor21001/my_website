@@ -3,12 +3,12 @@
   Структурный клон components/stats/SteamStats (без аватара/ссылки).
 */
 
-import { useAppSelector } from '../../../hooks/redux'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { EmptyCard } from '../../shared/Card'
+import { useInBodyResults } from '../../../hooks/useFitnessData'
 
 export function InBodyPanel() {
-  const inbodyResults = useAppSelector((state) => state.fitness.inbodyResults)
+  const { inbodyResults } = useInBodyResults()
 
   if (inbodyResults.length === 0) {
     return (

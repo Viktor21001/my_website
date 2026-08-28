@@ -2,8 +2,10 @@ import { configureStore } from '@reduxjs/toolkit'
 import profileReducer from './slices/profileSlice'
 import uiReducer from './slices/uiSlice'
 import fitnessReducer from './slices/fitnessSlice'
+import authReducer from './slices/authSlice'
 import { githubApi } from './api/githubApi'
 import { steamApi } from './api/steamApi'
+import { backendApi } from './api/backendApi'
 
 /*
   configureStore — собирает все слайсы и API в единый store.
@@ -16,10 +18,12 @@ export const store = configureStore({
     profile: profileReducer,
     ui:      uiReducer,
     fitness: fitnessReducer,
+    auth:    authReducer,
 
     // RTK Query хранит здесь кеш всех запросов
-    [githubApi.reducerPath]: githubApi.reducer,
-    [steamApi.reducerPath]:  steamApi.reducer,
+    [githubApi.reducerPath]:  githubApi.reducer,
+    [steamApi.reducerPath]:   steamApi.reducer,
+    [backendApi.reducerPath]: backendApi.reducer,
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -27,7 +31,8 @@ export const store = configureStore({
       // Middleware RTK Query — управляет кешем, инвалидацией,
       // автоматическим рефетчем и очисткой устаревших данных
       .concat(githubApi.middleware)
-      .concat(steamApi.middleware),
+      .concat(steamApi.middleware)
+      .concat(backendApi.middleware),
 })
 
 // Выводим типы автоматически из store — не пишем вручную

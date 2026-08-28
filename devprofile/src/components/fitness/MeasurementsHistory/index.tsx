@@ -1,6 +1,7 @@
-import { useAppSelector } from '../../../hooks/redux'
 import { EmptyCard } from '../../shared/Card'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
+import { useMeasurements } from '../../../hooks/useFitnessData'
+import { AddMeasurementForm } from '../AddMeasurementForm'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -22,15 +23,17 @@ function Delta({ value, goodWhenNegative }: { value: number; goodWhenNegative: b
 }
 
 export function MeasurementsHistory() {
-  const measurements = useAppSelector((state) => state.fitness.measurements)
-
-  if (measurements.length === 0) return <EmptyCard message="Замеров пока нет" />
+  const { measurements } = useMeasurements()
 
   // Новые сверху, дельта считается относительно предыдущего (более старого) замера
   const chronological = sortByDateAsc(measurements)
 
   return (
     <div className="flex flex-col">
+      <AddMeasurementForm />
+
+      {measurements.length === 0 && <EmptyCard message="Замеров пока нет" />}
+
       {chronological
         .slice()
         .reverse()

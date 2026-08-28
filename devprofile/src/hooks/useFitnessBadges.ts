@@ -2,9 +2,9 @@
   useFitnessBadges — структурная копия hooks/useBadges.ts для фитнес-раздела.
 
   Отличие источника данных: вместо RTK Query кеша GitHub/Steam читаем
-  моковые массивы из fitnessSlice (workouts/measurements/inbodyResults/
-  leaderboard) — в будущем при переходе на реальный бэкенд источник
-  данных сменится, форма хука — нет.
+  RTK Query кеш backendApi (свой сервер) через хуки useFitnessData.ts —
+  workouts/measurements/inbodyResults/leaderboard больше не моки,
+  а реальные данные пользователя, но форма хука та же.
 
   Зависит от state.fitness.level (считается в useFitnessRating) только
   ради бейджа level_10 — при первом маунте level ещё не посчитан, эффект
@@ -16,15 +16,17 @@ import { useAppDispatch, useAppSelector } from './redux'
 import { setBadges } from '../store/slices/fitnessSlice'
 import { makeFitnessBadge } from '../config/fitnessBadges'
 import { longestDailyStreak, sortByDateAsc } from '../utils/fitnessCalc'
+import { useMeasurements, useWorkouts, useInBodyResults, useLeaderboard } from './useFitnessData'
 import type { FitnessBadge } from '../types/fitness'
 
 export function useFitnessBadges() {
   const dispatch = useAppDispatch()
 
-  const workouts = useAppSelector((state) => state.fitness.workouts)
-  const measurements = useAppSelector((state) => state.fitness.measurements)
-  const inbodyResults = useAppSelector((state) => state.fitness.inbodyResults)
-  const leaderboard = useAppSelector((state) => state.fitness.leaderboard)
+  const ageGroup = useAppSelector((state) => state.auth.user?.ageGroup ?? '25-30')
+  const { workouts } = useWorkouts()
+  const { measurements } = useMeasurements()
+  const { inbodyResults } = useInBodyResults()
+  const { leaderboard } = useLeaderboard(ageGroup)
   const level = useAppSelector((state) => state.fitness.level)
 
   useEffect(() => {
