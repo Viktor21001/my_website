@@ -6,7 +6,7 @@
   без переписывания типов.
 */
 
-export type AgeGroup = '16-20' | '20-25' | '25-30' | '30-35' | '35-40' | '40+'
+export type AgeGroup = '16-20' | '21-25' | '26-30' | '31-35' | '36-40' | '41+'
 
 export interface BodyMeasurement {
   id: string

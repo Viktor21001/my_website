@@ -53,20 +53,20 @@ interface BotSpec {
 }
 
 const BOTS: BotSpec[] = [
-  { username: 'ironmaxx', ageGroup: '25-30', tier: 1 },
-  { username: 'sanya_fit', ageGroup: '25-30', tier: 2 },
-  { username: 'kostya_gym', ageGroup: '25-30', tier: 3 },
-  { username: 'lifter_dan', ageGroup: '25-30', tier: 4 },
-  { username: 'progress_egor', ageGroup: '25-30', tier: 5 },
-  { username: 'young_gains', ageGroup: '20-25', tier: 1 },
-  { username: 'nastya_run', ageGroup: '20-25', tier: 2 },
-  { username: 'denis_25', ageGroup: '20-25', tier: 3 },
-  { username: 'oldschool_pro', ageGroup: '30-35', tier: 1 },
-  { username: 'masha_forma', ageGroup: '30-35', tier: 2 },
-  { username: 'vlad_35', ageGroup: '30-35', tier: 3 },
+  { username: 'ironmaxx', ageGroup: '26-30', tier: 1 },
+  { username: 'sanya_fit', ageGroup: '26-30', tier: 2 },
+  { username: 'kostya_gym', ageGroup: '26-30', tier: 3 },
+  { username: 'lifter_dan', ageGroup: '26-30', tier: 4 },
+  { username: 'progress_egor', ageGroup: '26-30', tier: 5 },
+  { username: 'young_gains', ageGroup: '21-25', tier: 1 },
+  { username: 'nastya_run', ageGroup: '21-25', tier: 2 },
+  { username: 'denis_25', ageGroup: '21-25', tier: 3 },
+  { username: 'oldschool_pro', ageGroup: '31-35', tier: 1 },
+  { username: 'masha_forma', ageGroup: '31-35', tier: 2 },
+  { username: 'vlad_35', ageGroup: '31-35', tier: 3 },
   { username: 'diana_yng', ageGroup: '16-20', tier: 3 },
-  { username: 'sergey_38', ageGroup: '35-40', tier: 2 },
-  { username: 'viktor_45', ageGroup: '40+', tier: 2 },
+  { username: 'sergey_38', ageGroup: '36-40', tier: 2 },
+  { username: 'viktor_45', ageGroup: '41+', tier: 2 },
 ]
 
 const TIER_PARAMS: Record<

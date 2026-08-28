@@ -11,7 +11,7 @@ export function RegisterForm() {
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
-  const [ageGroup, setAgeGroup] = useState<AgeGroup>('25-30')
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>('26-30')
   const [register, { isLoading, error }] = useRegisterMutation()
   const dispatch = useAppDispatch()
 

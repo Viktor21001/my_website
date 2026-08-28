@@ -22,7 +22,7 @@ import type { FitnessBadge } from '../types/fitness'
 export function useFitnessBadges() {
   const dispatch = useAppDispatch()
 
-  const ageGroup = useAppSelector((state) => state.auth.user?.ageGroup ?? '25-30')
+  const ageGroup = useAppSelector((state) => state.auth.user?.ageGroup ?? '26-30')
   const { workouts } = useWorkouts()
   const { measurements } = useMeasurements()
   const { inbodyResults } = useInBodyResults()

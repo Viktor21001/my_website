@@ -9,16 +9,18 @@
 */
 
 import { useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux'
 import { setSettingsOpen } from '../../../store/slices/uiSlice'
 import { useUpdateProfile } from '../../../hooks/useProfile'
 import { useModalHistoryClose } from '../../../hooks/useModalHistoryClose'
+import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
 import { useChangePasswordMutation } from '../../../store/api/backendApi'
 import { useLazyResolveVanityUrlQuery } from '../../../store/api/steamApi'
 import { parseSteamInput } from '../../../hooks/useSteam'
 import { BACKGROUND_PRESETS } from '../../../config/constants'
-import { slideUpVariants } from '../../../hooks/useAnimatedMount'
+import { slideUpVariants, tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { extractApiError } from '../../../utils/apiError'
 import type { AuthUser } from '../../../types/auth'
 import { DEFAULT_BACKGROUND, type BackgroundConfig } from '../../../types/profile'
@@ -217,6 +219,74 @@ function PersonalInfoSection({ user }: { user: AuthUser }) {
   )
 }
 
+const STEAM_HELP_TOOLTIP_WIDTH = 260
+
+/*
+  Иконка-подсказка рядом с полем Steam — не все знают, где смотреть
+  логин и как получить числовой SteamID64. Тултип рендерится порталом
+  в document.body (тот же приём, что и в BadgesRow) — иначе внутри
+  прокручиваемой bottom-sheet панели настроек он обрезался бы.
+*/
+function SteamIdHelpIcon() {
+  const [hovered, setHovered] = useState(false)
+  const { triggerRef, position, show } = useTooltipPosition<HTMLSpanElement>(STEAM_HELP_TOOLTIP_WIDTH)
+
+  return (
+    <span
+      ref={triggerRef}
+      onMouseEnter={() => { setHovered(true); show() }}
+      onMouseLeave={() => setHovered(false)}
+      className="absolute flex items-center justify-center rounded-full select-none"
+      style={{
+        top: '50%', right: 10, transform: 'translateY(-50%)',
+        width: 18, height: 18, fontSize: 11, cursor: 'help',
+        background: 'var(--dp-bg-card)',
+        border: '1px solid var(--dp-border)',
+        color: 'var(--dp-text-secondary)',
+      }}
+    >
+      ?
+
+      {hovered && position && createPortal(
+        <motion.div
+          className="fixed z-50 p-3 rounded pointer-events-none"
+          style={{
+            bottom: position.bottom,
+            left:   position.left,
+            width:  STEAM_HELP_TOOLTIP_WIDTH,
+            background:  'var(--dp-bg-panel)',
+            border:      '1px solid var(--dp-border-accent)',
+            boxShadow:   'var(--dp-shadow-lg)',
+            borderRadius: 'var(--dp-radius-md)',
+          }}
+          variants={tooltipVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <div className="text-xs font-semibold mb-1" style={{ color: 'var(--dp-accent-bright)' }}>
+            Где взять логин
+          </div>
+          <div className="text-xs" style={{ color: 'var(--dp-text-secondary)' }}>
+            Steam → «Мой кошелёк» → под строкой «Пополнить баланс» есть строка «Пополнить баланс кошелька "логин"» — это и есть ваш логин.
+          </div>
+
+          <div
+            className="text-xs font-semibold mt-2 pt-2 mb-1"
+            style={{ color: 'var(--dp-accent-bright)', borderTop: '1px solid var(--dp-border)' }}
+          >
+            Где взять SteamID64
+          </div>
+          <div className="text-xs" style={{ color: 'var(--dp-text-secondary)' }}>
+            Скопируйте полную ссылку на свой профиль Steam, откройте steamdb.com/ru/tools/steam-id-finder и вставьте ссылку в поисковую строку — сайт покажет SteamID64.
+          </div>
+        </motion.div>,
+        document.body,
+        'steam-id-help-tooltip'
+      )}
+    </span>
+  )
+}
+
 function ConnectedAccountsSection({ user }: { user: AuthUser }) {
   const [githubUsername, setGithubUsername] = useState(user.githubUsername ?? '')
   const [steamId, setSteamId] = useState(user.steamId ?? '')
@@ -268,10 +338,14 @@ function ConnectedAccountsSection({ user }: { user: AuthUser }) {
           type="text" className="dp-input" placeholder="GitHub username"
           value={githubUsername} onChange={(e) => setGithubUsername(e.target.value)}
         />
-        <input
-          type="text" className="dp-input" placeholder="Steam: логин, ссылка на профиль или SteamID64"
-          value={steamId} onChange={(e) => setSteamId(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            type="text" className="dp-input" placeholder="Steam: логин, ссылка на профиль или SteamID64"
+            style={{ paddingRight: 34 }}
+            value={steamId} onChange={(e) => setSteamId(e.target.value)}
+          />
+          <SteamIdHelpIcon />
+        </div>
         {resolveError && <div className="dp-error">{resolveError}</div>}
         {error && <div className="dp-error">{extractApiError(error, 'Не удалось сохранить')}</div>}
         <div className="flex items-center gap-2">

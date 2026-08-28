@@ -40,6 +40,13 @@ export const steamApi = createApi({
       },
     }),
 
+    /*
+      imgLogoUrl: Steam давно перестал отдавать поле img_logo_url в ответах
+      GetOwnedGames/GetRecentlyPlayedGames — раньше здесь подставлялся
+      undefined и картинка не грузилась (404 на ".../undefined.jpg").
+      CDN-путь capsule_184x69.jpg собирается по одному appid, без хеша,
+      и всегда доступен.
+    */
     // Последние 3 сыгранные игры
     getRecentGames: builder.query<SteamGame[], string>({
       query: (steamId) =>
@@ -49,7 +56,7 @@ export const steamApi = createApi({
           appId:          g.appid,
           name:           g.name,
           imgIconUrl:     `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg`,
-          imgLogoUrl:     `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_logo_url}.jpg`,
+          imgLogoUrl:     `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_184x69.jpg`,
           playtimeForever: g.playtime_forever,
           playtime2Weeks: g.playtime_2weeks,
           lastPlayed:     g.rtime_last_played,
@@ -73,9 +80,22 @@ export const steamApi = createApi({
             appId:           g.appid,
             name:            g.name,
             imgIconUrl:      `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg`,
-            imgLogoUrl:      `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_logo_url}.jpg`,
+            imgLogoUrl:      `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/capsule_184x69.jpg`,
             playtimeForever: g.playtime_forever,
           })),
+    }),
+
+    /*
+      Список желаемого. Официального метода нет в документации Valve,
+      но IWishlistService/GetWishlist давно используется сторонними
+      сайтами (SteamDB и т.п.) и не требует ключа — отдаёт то же самое,
+      что видно на странице wishlist в профиле. Ключ передаём как и
+      везде, для единообразия и на случай будущих ограничений по rate-limit.
+    */
+    getWishlistCount: builder.query<number, string>({
+      query: (steamId) =>
+        `/IWishlistService/GetWishlist/v1/?key=${KEY}&steamid=${steamId}`,
+      transformResponse: (raw: any): number => (raw.response?.items ?? []).length,
     }),
 
     /*
@@ -129,6 +149,7 @@ export const {
   useGetSteamPlayerQuery,
   useGetRecentGamesQuery,
   useGetOwnedGamesQuery,
+  useGetWishlistCountQuery,
   useResolveVanityUrlQuery,
   useLazyResolveVanityUrlQuery,
   useGetFavoriteGamesAchievementsQuery,

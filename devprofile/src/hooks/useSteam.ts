@@ -14,6 +14,7 @@ import {
   useGetSteamPlayerQuery,
   useGetRecentGamesQuery,
   useGetOwnedGamesQuery,
+  useGetWishlistCountQuery,
   useGetFavoriteGamesAchievementsQuery,
 } from '../store/api/steamApi'
 import { SteamPersonaState } from '../types/steam'
@@ -122,6 +123,25 @@ export function useOwnedGames() {
   } = useGetOwnedGamesQuery(steamId, { skip: !steamId })
 
   return { games, isLoading, isError }
+}
+
+/*
+  Хук счётчика желаемого. Официального метода в документации Steam Web
+  API нет, но IWishlistService/GetWishlist давно используется как
+  стабильный недокументированный эндпоинт (см. SteamDB и подобные
+  сайты) — работает без ключа, отдаёт ровно то, что видно в разделе
+  "Желаемое" на community-профиле.
+*/
+export function useWishlistCount() {
+  const steamId = useSteamId()
+
+  const {
+    data: count = 0,
+    isLoading,
+    isError,
+  } = useGetWishlistCountQuery(steamId, { skip: !steamId })
+
+  return { count, isLoading, isError }
 }
 
 /*

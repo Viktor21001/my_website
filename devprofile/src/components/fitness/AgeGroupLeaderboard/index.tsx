@@ -9,7 +9,7 @@ import type { AgeGroup } from '../../../types/fitness'
 
 export function AgeGroupLeaderboard() {
   const myAgeGroup = useAppSelector((state) => state.auth.user?.ageGroup)
-  const [ageGroup, setAgeGroup] = useState<AgeGroup>(myAgeGroup ?? '25-30')
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>(myAgeGroup ?? '26-30')
 
   // Сервер уже возвращает список отфильтрованным по группе и отсортированным по рангу
   const { leaderboard: rows } = useLeaderboard(ageGroup)
