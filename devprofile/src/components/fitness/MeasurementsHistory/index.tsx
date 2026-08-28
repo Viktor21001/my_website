@@ -2,6 +2,7 @@ import { EmptyCard } from '../../shared/Card'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { useMeasurements } from '../../../hooks/useFitnessData'
 import { AddMeasurementForm } from '../AddMeasurementForm'
+import { MeasurementsChart } from '../MeasurementsChart'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -30,6 +31,8 @@ export function MeasurementsHistory() {
 
   return (
     <div className="flex flex-col">
+      {measurements.length > 0 && <MeasurementsChart measurements={measurements} />}
+
       <AddMeasurementForm />
 
       {measurements.length === 0 && <EmptyCard message="Замеров пока нет" />}
