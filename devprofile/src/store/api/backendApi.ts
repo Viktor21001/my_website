@@ -15,6 +15,7 @@ import type {
   InBodyResult,
   LeaderboardEntry,
   NewBodyMeasurement,
+  NewExercise,
   NewInBodyResult,
   NewWorkout,
   Workout,
@@ -93,6 +94,10 @@ export const backendApi = createApi({
       query: () => '/exercises',
       providesTags: ['Exercises'],
     }),
+    addExercise: builder.mutation<Exercise, NewExercise>({
+      query: (body) => ({ url: '/exercises', method: 'POST', body }),
+      invalidatesTags: ['Exercises'],
+    }),
 
     getLeaderboard: builder.query<LeaderboardEntry[], AgeGroup>({
       query: (ageGroup) => `/leaderboard?ageGroup=${ageGroup}`,
@@ -115,5 +120,6 @@ export const {
   useGetWorkoutsQuery,
   useAddWorkoutMutation,
   useGetExercisesQuery,
+  useAddExerciseMutation,
   useGetLeaderboardQuery,
 } = backendApi

@@ -22,6 +22,7 @@ import {
   useGetWorkoutsQuery,
   useAddWorkoutMutation,
   useGetExercisesQuery,
+  useAddExerciseMutation,
   useGetLeaderboardQuery,
 } from '../store/api/backendApi'
 import type { AgeGroup } from '../types/fitness'
@@ -63,4 +64,4 @@ export function useLeaderboard(ageGroup: AgeGroup) {
 }
 
 // Реэкспорт мутаций — формам не нужно знать про backendApi напрямую
-export { useAddMeasurementMutation, useAddInBodyResultMutation, useAddWorkoutMutation }
+export { useAddMeasurementMutation, useAddInBodyResultMutation, useAddWorkoutMutation, useAddExerciseMutation }

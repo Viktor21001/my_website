@@ -22,6 +22,12 @@ import type { Workout } from '../../../types/fitness'
 
 type Tab = 'workouts' | 'measurements' | 'inbody'
 
+// Список тренировок не растягивает блок бесконечно — высота ограничена
+// пятью карточками (реальная высота одной карточки WorkoutCard — ~70px),
+// при большем числе тренировок появляется прокрутка внутри блока
+const WORKOUT_CARD_HEIGHT = 70
+const MAX_VISIBLE_WORKOUTS = 5
+
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'workouts',     label: 'Тренировки', icon: '🏋️' },
   { id: 'measurements', label: 'Замеры',      icon: '📏' },
@@ -45,9 +51,14 @@ export function WorkoutLog() {
   const [player, setPlayer] = useState<PlayerLaunch | null>(null)
   const [repeatingId, setRepeatingId] = useState<string | null>(null)
 
-  const workoutsDesc = [...workouts].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  )
+  // По дате тренировки, а при совпадении (несколько тренировок за один день,
+  // у всех date == полночь UTC того дня) — по времени создания записи, чтобы
+  // только что добавленная тренировка всегда была выше остальных за этот день
+  const workoutsDesc = [...workouts].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
   const inbodyDesc = sortByDateAsc(inbodyResults).reverse()
 
   // Повтор тренировки из истории: пересохраняет тот же набор подходов с
@@ -157,11 +168,21 @@ export function WorkoutLog() {
             {repeatError && (
               <div className="dp-error mx-3">{extractApiError(repeatError, 'Не удалось повторить тренировку')}</div>
             )}
-            {workoutsDesc.length === 0
-              ? <EmptyCard message="Тренировок пока нет" />
-              : workoutsDesc.map((w) => (
-                <WorkoutCard key={w.id} workout={w} onRepeat={handleRepeat} isRepeating={repeatingId === w.id} />
-              ))}
+            {workoutsDesc.length === 0 ? (
+              <EmptyCard message="Тренировок пока нет" />
+            ) : (
+              <div
+                style={
+                  workoutsDesc.length > MAX_VISIBLE_WORKOUTS
+                    ? { maxHeight: WORKOUT_CARD_HEIGHT * MAX_VISIBLE_WORKOUTS, overflowY: 'auto' }
+                    : undefined
+                }
+              >
+                {workoutsDesc.map((w) => (
+                  <WorkoutCard key={w.id} workout={w} onRepeat={handleRepeat} isRepeating={repeatingId === w.id} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -61,6 +61,17 @@ export interface Exercise {
   isTimeBased: boolean
 }
 
+// Пользователь дополняет общую библиотеку — compound/minLevel не задаются
+// руками, дефолтятся на сервере (влияют только на эвристику автогенерации)
+export interface NewExercise {
+  name: string
+  muscleGroup: MuscleGroup
+  equipment?: string
+  homeFriendly: boolean
+  bodyweightOnly: boolean
+  isTimeBased: boolean
+}
+
 // Конструктор тренировок (WorkoutBuilder) — цель и место тренировки
 export type WorkoutGoal = 'weight_loss' | 'lean_toning' | 'muscle_gain' | 'strength'
 export type WorkoutLocation = 'home' | 'gym'
@@ -82,7 +93,8 @@ export interface WorkoutSet {
 
 export interface Workout {
   id: string
-  date: string // ISO
+  date: string // ISO — дата, за которую засчитана тренировка (выбирается вручную)
+  createdAt: string // ISO — момент сохранения записи, тай-брейк для сортировки истории
   title: string
   durationMin: number
   sets: WorkoutSet[]

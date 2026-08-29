@@ -43,7 +43,7 @@ import { WorkoutLog }           from './components/fitness/WorkoutLog'
 import { AgeGroupLeaderboard }  from './components/fitness/AgeGroupLeaderboard'
 import { ExerciseLibrary }      from './components/fitness/ExerciseLibrary'
 import { FitnessBadgesRow }     from './components/fitness/FitnessBadgesRow'
-import { WorkoutTimer }         from './components/fitness/WorkoutTimer'
+import { Stopwatch }            from './components/fitness/Stopwatch'
 import { InBodyPanel }          from './components/fitness/InBodyPanel'
 
 function App() {
@@ -129,7 +129,7 @@ function App() {
           ) : (
             <>
               <FitnessBadgesRow />
-              <WorkoutTimer />
+              <Stopwatch />
               <InBodyPanel />
               <ComingSoon title="Чаты" icon="💬" />
             </>

@@ -13,6 +13,7 @@ const workoutInclude = { sets: { include: { exercise: true } } } as const
 function serializeWorkout(workout: {
   id: string
   date: Date
+  createdAt: Date
   title: string
   durationMin: number
   notes: string | null
@@ -27,6 +28,7 @@ function serializeWorkout(workout: {
   return {
     id: workout.id,
     date: workout.date,
+    createdAt: workout.createdAt,
     title: workout.title,
     durationMin: workout.durationMin,
     notes: workout.notes,
@@ -45,7 +47,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const workouts = await prisma.workout.findMany({
       where: { userId: req.userId! },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       include: workoutInclude,
     })
     res.json(workouts.map(serializeWorkout))

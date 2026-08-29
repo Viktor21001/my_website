@@ -9,8 +9,8 @@
   «Готово»/обратного отсчёта, пока не подтверждено. Для bodyweightOnly вес
   не спрашивается (он и так тело пользователя, не вводится руками нигде).
 
-  Тикающий таймер — тот же паттерн setInterval, что и в WorkoutTimer
-  (devprofile\src\components\fitness\WorkoutTimer), плюс проверка
+  Тикающий таймер — тот же паттерн setInterval, что и в Stopwatch
+  (devprofile\src\components\fitness\Stopwatch), плюс проверка
   isPaused перед декрементом вместо остановки интервала.
 */
 
