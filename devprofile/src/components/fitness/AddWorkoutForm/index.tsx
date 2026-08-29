@@ -138,6 +138,11 @@ export function AddWorkoutForm({
       return
     }
 
+    // Одно упражнение — название необязательно (см. required ниже), падаем
+    // на имя самого упражнения, если пользователь его не ввёл
+    const finalTitle = title || (rows.length === 1 ? exercises.find((e) => e.id === rows[0].exerciseId)?.name : undefined)
+    if (!finalTitle) return
+
     const steps: PlayerStep[] = rows.map((r) => {
       const exercise = exercises.find((e) => e.id === r.exerciseId)
       return {
@@ -152,7 +157,7 @@ export function AddWorkoutForm({
     try {
       await addWorkout({
         date: new Date(date).toISOString(),
-        title,
+        title: finalTitle,
         durationMin,
         sets: assignSetNumbers(rows),
       }).unwrap()
@@ -260,7 +265,7 @@ export function AddWorkoutForm({
             <button type="button" onClick={handleSwimSubmit} className="dp-btn-primary text-xs" disabled={isLoading}>
               {isLoading ? 'Сохраняем…' : 'Сохранить'}
             </button>
-            <button type="button" className="dp-btn-ghost text-xs" onClick={() => setOpen(false)}>
+            <button type="button" className="dp-btn-ghost text-xs" onClick={() => { resetForm(); setOpen(false) }}>
               Отмена
             </button>
           </div>
@@ -269,8 +274,10 @@ export function AddWorkoutForm({
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <div className="grid grid-cols-3 gap-2">
             <input
-              type="text" placeholder="Название" className="dp-input text-xs" value={title}
-              onChange={(e) => setTitle(e.target.value)} required
+              type="text"
+              placeholder={rows.length === 1 ? 'Название (необязательно)' : 'Название'}
+              className="dp-input text-xs" value={title}
+              onChange={(e) => setTitle(e.target.value)} required={rows.length > 1}
             />
             <select
               className="dp-input text-xs"
@@ -334,9 +341,20 @@ export function AddWorkoutForm({
             })}
           </div>
 
-          <button type="button" onClick={addRow} className="dp-btn-ghost text-xs self-start">
-            + Подход
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={addRow} className="dp-btn-ghost text-xs self-start">
+              + Подход
+            </button>
+            {(rows.length > 1 || !!rows[0]?.exerciseId) && (
+              <button
+                type="button"
+                onClick={() => setRows([{ ...EMPTY_ROW }])}
+                className="dp-btn-ghost text-xs self-start"
+              >
+                ↺ Очистить список
+              </button>
+            )}
+          </div>
 
           {/* Плашка «Сгенерировать тренировку» — до клика на «Сгенерировать» ниже ничего не подбирается */}
           <div
@@ -389,7 +407,7 @@ export function AddWorkoutForm({
             <button type="submit" className="dp-btn-primary text-xs" disabled={isLoading}>
               {isLoading ? 'Сохраняем…' : 'Утвердить тренировку'}
             </button>
-            <button type="button" className="dp-btn-ghost text-xs" onClick={() => setOpen(false)}>
+            <button type="button" className="dp-btn-ghost text-xs" onClick={() => { resetForm(); setOpen(false) }}>
               Отмена
             </button>
           </div>
