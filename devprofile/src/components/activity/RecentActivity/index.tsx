@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { GithubProjectCard } from '../GithubProjectCard'
 import { GameCard } from '../GameCard'
 import { ActivityFeed } from '../ActivityFeed'
+import { GithubContributions } from '../../stats/GithubContributions'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { useRecentRepos } from '../../../hooks/useGithub'
@@ -90,7 +91,12 @@ export function RecentActivity() {
           </>
         )}
 
-        {activeTab === 'activity' && <ActivityFeed />}
+        {activeTab === 'activity' && (
+          <div className="flex flex-col gap-3">
+            <GithubContributions />
+            <ActivityFeed />
+          </div>
+        )}
 
         {activeTab === 'games' && (
           <>

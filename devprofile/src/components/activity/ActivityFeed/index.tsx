@@ -47,7 +47,7 @@ export function ActivityFeed() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">Активность на GitHub</div>
+      <div className="dp-section-title">Последние события</div>
 
       {feedItems.length === 0 ? (
         <EmptyCard message="Нет публичной активности" />

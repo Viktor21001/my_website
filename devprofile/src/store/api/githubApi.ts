@@ -1,6 +1,76 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import type { GithubRepo, GithubEvent, GithubProfile, TopLanguage } from '../../types/github'
+import type { GithubRepo, GithubEvent, GithubProfile, TopLanguage, ContributionsData } from '../../types/github'
 import { LANGUAGE_COLORS } from '../../config/constants'
+
+/*
+  Календарь контрибуций (зелёные квадраты) REST API не отдаёт вообще —
+  это поле есть только в GraphQL (contributionsCollection). Один POST на
+  /graphql с тем же токеном, что и у REST-запросов выше.
+*/
+const CONTRIBUTIONS_QUERY = `
+  query($login: String!) {
+    user(login: $login) {
+      contributionsCollection {
+        totalCommitContributions
+        totalIssueContributions
+        totalPullRequestContributions
+        totalPullRequestReviewContributions
+        contributionCalendar {
+          totalContributions
+          weeks {
+            contributionDays {
+              date
+              contributionCount
+              color
+            }
+          }
+        }
+        commitContributionsByRepository(maxRepositories: 10) {
+          repository { nameWithOwner url }
+          contributions { totalCount }
+        }
+        issueContributionsByRepository(maxRepositories: 10) {
+          repository { nameWithOwner url }
+          contributions { totalCount }
+        }
+        pullRequestContributionsByRepository(maxRepositories: 10) {
+          repository { nameWithOwner url }
+          contributions { totalCount }
+        }
+        pullRequestReviewContributionsByRepository(maxRepositories: 10) {
+          repository { nameWithOwner url }
+          contributions { totalCount }
+        }
+      }
+    }
+  }
+`
+
+interface GraphqlContributionsResponse {
+  data: {
+    user: {
+      contributionsCollection: {
+        totalCommitContributions: number
+        totalIssueContributions: number
+        totalPullRequestContributions: number
+        totalPullRequestReviewContributions: number
+        contributionCalendar: {
+          totalContributions: number
+          weeks: { contributionDays: { date: string; contributionCount: number; color: string }[] }[]
+        }
+        commitContributionsByRepository: RepoContribution[]
+        issueContributionsByRepository: RepoContribution[]
+        pullRequestContributionsByRepository: RepoContribution[]
+        pullRequestReviewContributionsByRepository: RepoContribution[]
+      } | null
+    } | null
+  }
+}
+
+interface RepoContribution {
+  repository: { nameWithOwner: string; url: string }
+  contributions: { totalCount: number }
+}
 
 /*
   createApi — создаёт набор хуков для запросов к API.
@@ -99,6 +169,59 @@ export const githubApi = createApi({
           })),
     }),
 
+    // Календарь контрибуций + разбивка коммиты/issues/PR/ревью + репозитории,
+    // в которые был вклад — тот самый зелёный график с github.com
+    getContributions: builder.query<ContributionsData, string>({
+      query: (username) => ({
+        url: '/graphql',
+        method: 'POST',
+        body: { query: CONTRIBUTIONS_QUERY, variables: { login: username } },
+      }),
+      transformResponse: (raw: GraphqlContributionsResponse): ContributionsData => {
+        const cc = raw.data.user?.contributionsCollection
+        if (!cc) {
+          return { totalContributions: 0, weeks: [], totals: { commits: 0, issues: 0, pullRequests: 0, reviews: 0 }, contributedRepos: [] }
+        }
+
+        const weeks = cc.contributionCalendar.weeks.map((w) =>
+          w.contributionDays.map((d) => ({ date: d.date, count: d.contributionCount, color: d.color }))
+        )
+
+        // Один и тот же репозиторий может встретиться в нескольких списках
+        // (коммит и код-ревью в одном репо) — схлопываем по nameWithOwner,
+        // сортируем по суммарному вкладу, как в "Contributed to" на GitHub
+        const repoWeights = new Map<string, { nameWithOwner: string; url: string; weight: number }>()
+        const addRepos = (list: RepoContribution[]) => {
+          for (const item of list) {
+            const key = item.repository.nameWithOwner
+            const existing = repoWeights.get(key)
+            if (existing) existing.weight += item.contributions.totalCount
+            else repoWeights.set(key, { nameWithOwner: key, url: item.repository.url, weight: item.contributions.totalCount })
+          }
+        }
+        addRepos(cc.commitContributionsByRepository)
+        addRepos(cc.issueContributionsByRepository)
+        addRepos(cc.pullRequestContributionsByRepository)
+        addRepos(cc.pullRequestReviewContributionsByRepository)
+
+        const contributedRepos = [...repoWeights.values()]
+          .sort((a, b) => b.weight - a.weight)
+          .map(({ nameWithOwner, url }) => ({ nameWithOwner, url }))
+
+        return {
+          totalContributions: cc.contributionCalendar.totalContributions,
+          weeks,
+          totals: {
+            commits: cc.totalCommitContributions,
+            issues: cc.totalIssueContributions,
+            pullRequests: cc.totalPullRequestContributions,
+            reviews: cc.totalPullRequestReviewContributions,
+          },
+          contributedRepos,
+        }
+      },
+    }),
+
   }),
 })
 
@@ -107,6 +230,7 @@ export const {
   useGetRecentReposQuery,
   useGetRepoLanguagesQuery,
   useGetEventsQuery,
+  useGetContributionsQuery,
 } = githubApi
 
 /*

@@ -15,6 +15,7 @@ import {
   useGetRecentReposQuery,
   useGetEventsQuery,
   useGetRepoLanguagesQuery,
+  useGetContributionsQuery,
   calcTopLanguages,
 } from '../store/api/githubApi'
 import type { GithubRepo } from '../types/github'
@@ -132,6 +133,17 @@ export function useActivityFeed() {
   })
 
   return { feedItems, isLoading, isError }
+}
+
+// Хук для календаря контрибуций (зелёные квадраты) + обзора активности
+export function useContributions() {
+  const username = useAppSelector(
+    (state) => state.auth.user?.githubUsername ?? ''
+  )
+
+  const { data, isLoading, isError } = useGetContributionsQuery(username, { skip: !username })
+
+  return { contributions: data, isLoading, isError, username }
 }
 
 // Хук для топ языков по всем репозиториям (для правой колонки)

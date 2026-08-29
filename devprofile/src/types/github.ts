@@ -49,3 +49,28 @@ export interface TopLanguage {
   percent: number
   color: string // hex
 }
+
+// Календарь контрибуций — тот же зелёный квадратный график, что на github.com,
+// строится из GraphQL contributionsCollection (REST такого не отдаёт)
+export interface ContributionDay {
+  date: string   // "2026-08-29"
+  count: number
+  color: string  // hex, уже посчитанный GitHub'ом под текущую тему аккаунта
+}
+
+export interface ContributedRepo {
+  nameWithOwner: string // "owner/repo"
+  url: string
+}
+
+export interface ContributionsData {
+  totalContributions: number
+  weeks: ContributionDay[][] // по 7 дней (вс-сб), недостающие дни в первой/последней неделе не приходят
+  totals: {
+    commits: number
+    issues: number
+    pullRequests: number
+    reviews: number
+  }
+  contributedRepos: ContributedRepo[] // по убыванию суммарного вклада
+}
