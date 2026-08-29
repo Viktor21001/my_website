@@ -21,7 +21,7 @@ router.get(
 router.post(
   '/',
   asyncHandler(async (req, res) => {
-    const { date, weightKg, chestCm, waistCm, hipsCm, bicepCm, thighCm, notes } = req.body ?? {}
+    const { date, weightKg, chestCm, waistCm, hipsCm, bicepCm, thighCm, bodyFatPercent, skeletalMuscleMassKg, notes } = req.body ?? {}
 
     if (
       !date ||
@@ -30,6 +30,12 @@ router.post(
       )
     ) {
       throw new HttpError(400, 'Заполните все числовые поля замера')
+    }
+    // Опциональные — есть только у тех, кто замерялся анализатором состава тела
+    for (const v of [bodyFatPercent, skeletalMuscleMassKg]) {
+      if (v !== undefined && v !== null && (typeof v !== 'number' || Number.isNaN(v))) {
+        throw new HttpError(400, 'Некорректное значение % жира или мышечной массы')
+      }
     }
 
     const measurement = await prisma.bodyMeasurement.create({
@@ -42,6 +48,8 @@ router.post(
         hipsCm,
         bicepCm,
         thighCm,
+        bodyFatPercent: bodyFatPercent ?? null,
+        skeletalMuscleMassKg: skeletalMuscleMassKg ?? null,
         notes: notes || null,
       },
     })

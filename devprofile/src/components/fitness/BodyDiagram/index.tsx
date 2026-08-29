@@ -197,11 +197,20 @@ function BodyDiagramFigure({ measurement: m }: { measurement: BodyMeasurement })
         </svg>
       </div>
 
-      <div
-        className="flex items-center justify-center gap-1.5 pb-3 text-xs"
-        style={{ color: 'var(--dp-text-secondary)' }}
-      >
-        ⚖ Вес <span className="font-mono" style={{ color: 'var(--dp-text-primary)' }}>{m.weightKg} кг</span>
+      {/*
+        Вес всегда, дальше — мышечная масса, затем % жира (оба опциональны,
+        не у каждого замера есть анализатор состава тела). Не Callout'ы —
+        им нет соответствующего изгиба контура, который можно было бы
+        отметить стрелкой, поэтому это просто текстовые строки под фигурой.
+      */}
+      <div className="flex flex-col items-center gap-1 pb-3 text-xs" style={{ color: 'var(--dp-text-secondary)' }}>
+        <div>⚖ Вес <span className="font-mono" style={{ color: 'var(--dp-text-primary)' }}>{m.weightKg} кг</span></div>
+        {m.skeletalMuscleMassKg != null && (
+          <div>💪 Мышечная масса <span className="font-mono" style={{ color: 'var(--dp-text-primary)' }}>{m.skeletalMuscleMassKg} кг</span></div>
+        )}
+        {m.bodyFatPercent != null && (
+          <div>🔥 % жира <span className="font-mono" style={{ color: 'var(--dp-text-primary)' }}>{m.bodyFatPercent}%</span></div>
+        )}
       </div>
     </div>
   )

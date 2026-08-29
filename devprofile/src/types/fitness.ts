@@ -17,6 +17,11 @@ export interface BodyMeasurement {
   hipsCm: number
   bicepCm: number
   thighCm: number
+  // Опциональные — есть только у тех, кто замерялся анализатором состава
+  // тела; сервер отдаёт null для незаполненных (не undefined), поэтому
+  // везде, где эти поля читаются, надо проверять через `!= null`
+  bodyFatPercent?: number | null
+  skeletalMuscleMassKg?: number | null
   notes?: string
 }
 

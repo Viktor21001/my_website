@@ -18,7 +18,13 @@ const EMPTY_FORM = {
   hipsCm: '',
   bicepCm: '',
   thighCm: '',
+  bodyFatPercent: '',
+  skeletalMuscleMassKg: '',
 }
+
+// Эти два поля необязательные — не у всех есть анализатор состава тела,
+// пустое значение просто не отправляется, а не считается ошибкой ввода
+const OPTIONAL_FIELDS = ['bodyFatPercent', 'skeletalMuscleMassKg'] as const
 
 export function AddMeasurementForm() {
   const [open, setOpen] = useState(false)
@@ -41,8 +47,16 @@ export function AddMeasurementForm() {
     }
     if (Object.values(numbers).some((n) => Number.isNaN(n))) return
 
+    const optional: { bodyFatPercent?: number; skeletalMuscleMassKg?: number } = {}
+    for (const field of OPTIONAL_FIELDS) {
+      if (form[field] === '') continue
+      const n = Number(form[field])
+      if (Number.isNaN(n)) return
+      optional[field] = n
+    }
+
     try {
-      await addMeasurement({ date: new Date(form.date).toISOString(), ...numbers }).unwrap()
+      await addMeasurement({ date: new Date(form.date).toISOString(), ...numbers, ...optional }).unwrap()
       setForm(EMPTY_FORM)
       setOpen(false)
     } catch {
@@ -97,6 +111,14 @@ export function AddMeasurementForm() {
         <input
           type="number" step="0.1" placeholder="Бедро, см" className="dp-input text-xs"
           value={form.thighCm} onChange={(e) => setField('thighCm', e.target.value)} required
+        />
+        <input
+          type="number" step="0.1" placeholder="% жира (необязательно)" className="dp-input text-xs"
+          value={form.bodyFatPercent} onChange={(e) => setField('bodyFatPercent', e.target.value)}
+        />
+        <input
+          type="number" step="0.1" placeholder="Мышечная масса, кг (необязательно)" className="dp-input text-xs"
+          value={form.skeletalMuscleMassKg} onChange={(e) => setField('skeletalMuscleMassKg', e.target.value)}
         />
       </div>
 

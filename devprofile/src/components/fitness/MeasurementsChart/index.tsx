@@ -23,7 +23,9 @@ import { useMemo, useState } from 'react'
 import type { BodyMeasurement } from '../../../types/fitness'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 
-type MetricKey = 'weightKg' | 'chestCm' | 'waistCm' | 'hipsCm' | 'bicepCm' | 'thighCm'
+type MetricKey =
+  | 'weightKg' | 'chestCm' | 'waistCm' | 'hipsCm' | 'bicepCm' | 'thighCm'
+  | 'bodyFatPercent' | 'skeletalMuscleMassKg'
 
 const METRICS: { key: MetricKey; label: string; unit: string; color: string }[] = [
   { key: 'weightKg', label: 'Вес',     unit: 'кг', color: 'var(--dp-accent)' },
@@ -32,6 +34,10 @@ const METRICS: { key: MetricKey; label: string; unit: string; color: string }[] 
   { key: 'bicepCm',  label: 'Бицепс',  unit: 'см', color: 'var(--dp-red)' },
   { key: 'hipsCm',   label: 'Бёдра',   unit: 'см', color: '#a374db' },
   { key: 'thighCm',  label: 'Бедро',   unit: 'см', color: '#4ec9b0' },
+  // Опциональные — есть не у каждого замера, точки/линия строятся только
+  // там, где значение реально указано (см. lines ниже)
+  { key: 'bodyFatPercent',       label: '% жира',           unit: '%',  color: '#e8a33d' },
+  { key: 'skeletalMuscleMassKg', label: 'Мышечная масса',   unit: 'кг', color: '#5fb3e0' },
 ]
 
 const CHART_WIDTH = 640
@@ -80,8 +86,12 @@ export function MeasurementsChart({ measurements }: { measurements: BodyMeasurem
     return PAD_LEFT + ((t - firstDate) / dateSpan) * PLOT_WIDTH
   }
 
-  // Общий диапазон по всем показателям сразу, округлённый наружу до десятка
-  const allValues = chronological.flatMap((m) => METRICS.map((metric) => m[metric.key]))
+  // Общий диапазон по всем показателям сразу, округлённый наружу до десятка.
+  // % жира/мышечная масса опциональны — не заданные значения выкидываем,
+  // а не считаем нулём (иначе они утянули бы ось за собой к нулю)
+  const allValues = chronological
+    .flatMap((m) => METRICS.map((metric) => m[metric.key]))
+    .filter((v): v is number => v != null)
   const rawMin = Math.min(...allValues)
   const rawMax = Math.max(...allValues)
   let axisMin = Math.floor(rawMin / AXIS_STEP) * AXIS_STEP
@@ -101,17 +111,18 @@ export function MeasurementsChart({ measurements }: { measurements: BodyMeasurem
 
   const dateLabelIndices = pickIndices(chronological.length, MAX_DATE_LABELS)
 
+  // Строка без значения этого показателя просто не даёт точки — линия
+  // соединяет только реально заполненные замеры, а не тянется через дыры
   const lines = METRICS.map((metric) => {
-    const values = chronological.map((m) => m[metric.key])
-    const points = chronological.map((m) => ({
-      cx: x(m.date),
-      cy: y(m[metric.key]),
-      value: m[metric.key],
-      date: m.date,
-    }))
+    const points = chronological
+      .filter((m) => m[metric.key] != null)
+      .map((m) => {
+        const value = m[metric.key] as number
+        return { cx: x(m.date), cy: y(value), value, date: m.date }
+      })
 
-    return { ...metric, points, latest: values[values.length - 1] }
-  })
+    return { ...metric, points, latest: points[points.length - 1]?.value }
+  }).filter((line) => line.points.length > 0)
 
   return (
     <div>

@@ -88,6 +88,10 @@ model BodyMeasurement {
   thighCm  Float
   notes    String?
 
+  // Опциональные — не все замеры делаются с анализатором состава тела
+  bodyFatPercent       Float?
+  skeletalMuscleMassKg Float?
+
   @@index([userId])
 }
 
