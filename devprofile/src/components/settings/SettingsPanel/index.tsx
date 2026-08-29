@@ -19,7 +19,7 @@ import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
 import { useChangePasswordMutation } from '../../../store/api/backendApi'
 import { useLazyResolveVanityUrlQuery } from '../../../store/api/steamApi'
 import { parseSteamInput } from '../../../hooks/useSteam'
-import { BACKGROUND_PRESETS } from '../../../config/constants'
+import { BACKGROUND_PRESETS, LOCATION_OPTIONS, LOCATION_OTHER, TIMEZONE_OPTIONS } from '../../../config/constants'
 import { slideUpVariants, tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { extractApiError } from '../../../utils/apiError'
 import type { AuthUser } from '../../../types/auth'
@@ -173,18 +173,30 @@ function AvatarSection({ user }: { user: AuthUser }) {
   )
 }
 
+// Если сохранённая локация не входит в список городов — это либо ничего
+// не выбрано, либо раньше ввели что-то своё через «Другое»
+function initialLocationChoice(location: string | null): string {
+  if (!location) return ''
+  return (LOCATION_OPTIONS as readonly string[]).includes(location) ? location : LOCATION_OTHER
+}
+
 function PersonalInfoSection({ user }: { user: AuthUser }) {
   const [displayName, setDisplayName] = useState(user.displayName)
   const [bio, setBio] = useState(user.bio ?? '')
-  const [location, setLocation] = useState(user.location ?? '')
+  const [locationChoice, setLocationChoice] = useState(() => initialLocationChoice(user.location))
+  const [customLocation, setCustomLocation] = useState(() =>
+    locationChoice === LOCATION_OTHER ? (user.location ?? '') : ''
+  )
+  const [timezone, setTimezone] = useState(user.timezone ?? '')
   const [updateProfile, { isLoading, error }] = useUpdateProfile()
   const [saved, setSaved] = useState(false)
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setSaved(false)
+    const location = locationChoice === LOCATION_OTHER ? customLocation : locationChoice
     try {
-      await updateProfile({ displayName, bio, location })
+      await updateProfile({ displayName, bio, location, timezone: timezone || null })
       setSaved(true)
     } catch {
       // ошибка уже отражена через error ниже
@@ -199,10 +211,34 @@ function PersonalInfoSection({ user }: { user: AuthUser }) {
           type="text" className="dp-input" placeholder="Имя"
           value={displayName} onChange={(e) => setDisplayName(e.target.value)} required
         />
-        <input
-          type="text" className="dp-input" placeholder="Локация"
-          value={location} onChange={(e) => setLocation(e.target.value)}
-        />
+
+        <select
+          className="dp-input" value={locationChoice}
+          onChange={(e) => setLocationChoice(e.target.value)}
+        >
+          <option value="">Локация не выбрана</option>
+          {LOCATION_OPTIONS.map((city) => (
+            <option key={city} value={city}>{city}</option>
+          ))}
+          <option value={LOCATION_OTHER}>Другое…</option>
+        </select>
+        {locationChoice === LOCATION_OTHER && (
+          <input
+            type="text" className="dp-input" placeholder="Укажите город" autoFocus
+            value={customLocation} onChange={(e) => setCustomLocation(e.target.value)}
+          />
+        )}
+
+        <select
+          className="dp-input" value={timezone}
+          onChange={(e) => setTimezone(e.target.value)}
+        >
+          <option value="">Часовой пояс не выбран (время браузера)</option>
+          {TIMEZONE_OPTIONS.map((tz) => (
+            <option key={tz.value} value={tz.value}>{tz.label}</option>
+          ))}
+        </select>
+
         <textarea
           className="dp-input" placeholder="О себе" rows={2}
           value={bio} onChange={(e) => setBio(e.target.value)}

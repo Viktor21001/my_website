@@ -59,6 +59,46 @@ export const BACKGROUND_PRESETS = [
   },
 ]
 
+/*
+  Локация в Настройках — список городов, а не свободный текст: если
+  нужного города нет, в конце списка есть «Другое», выбор которого
+  открывает текстовое поле (см. SettingsPanel/index.tsx).
+*/
+export const LOCATION_OPTIONS = [
+  'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
+  'Нижний Новгород', 'Челябинск', 'Красноярск', 'Самара', 'Уфа',
+  'Ростов-на-Дону', 'Омск', 'Краснодар', 'Воронеж', 'Пермь',
+  'Минск', 'Киев', 'Алматы', 'Ташкент',
+  'Берлин', 'Лондон', 'Нью-Йорк', 'Дубай',
+] as const
+
+export const LOCATION_OTHER = '__other__'
+
+/*
+  Часовой пояс — влияет на часы в шапке (StatusBar/HeaderClock).
+  Значения — настоящие IANA-идентификаторы (их же принимает
+  Intl.DateTimeFormat timeZone и валидирует сервер через
+  Intl.supportedValuesOf('timeZone')), подписи — человекочитаемые.
+*/
+export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'Europe/Kaliningrad',  label: 'Калининград (UTC+2)' },
+  { value: 'Europe/Moscow',       label: 'Москва (UTC+3)' },
+  { value: 'Europe/Samara',       label: 'Самара (UTC+4)' },
+  { value: 'Asia/Yekaterinburg',  label: 'Екатеринбург (UTC+5)' },
+  { value: 'Asia/Omsk',           label: 'Омск (UTC+6)' },
+  { value: 'Asia/Krasnoyarsk',    label: 'Красноярск (UTC+7)' },
+  { value: 'Asia/Irkutsk',        label: 'Иркутск (UTC+8)' },
+  { value: 'Asia/Yakutsk',        label: 'Якутск (UTC+9)' },
+  { value: 'Asia/Vladivostok',    label: 'Владивосток (UTC+10)' },
+  { value: 'Asia/Magadan',        label: 'Магадан (UTC+11)' },
+  { value: 'Asia/Kamchatka',      label: 'Камчатка (UTC+12)' },
+  { value: 'Europe/London',       label: 'Лондон (UTC+0/+1)' },
+  { value: 'Europe/Berlin',       label: 'Берлин (UTC+1/+2)' },
+  { value: 'America/New_York',    label: 'Нью-Йорк (UTC-5/-4)' },
+  { value: 'Asia/Dubai',          label: 'Дубай (UTC+4)' },
+  { value: 'Asia/Almaty',         label: 'Алматы (UTC+6)' },
+]
+
 // XP система как в Steam
 export const XP_PER_LEVEL = 100
 export const levelFromXp = (xp: number) => Math.floor(xp / XP_PER_LEVEL)

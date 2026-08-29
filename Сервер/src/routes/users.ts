@@ -18,7 +18,7 @@ interface BackgroundInput {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -29,12 +29,18 @@ router.patch(
     ) {
       throw new HttpError(400, 'Некорректный список любимых игр')
     }
+    // Intl сама знает полный список валидных IANA-идентификаторов —
+    // не дублируем на сервере список часовых поясов из клиентского селекта
+    if (timezone && (typeof timezone !== 'string' || !Intl.supportedValuesOf('timeZone').includes(timezone))) {
+      throw new HttpError(400, 'Некорректный часовой пояс')
+    }
 
     const data: Record<string, unknown> = {}
     if (displayName !== undefined) data.displayName = displayName
     if (avatar !== undefined) data.avatar = avatar || null
     if (bio !== undefined) data.bio = bio || null
     if (location !== undefined) data.location = location || null
+    if (timezone !== undefined) data.timezone = timezone || null
     if (githubUsername !== undefined) data.githubUsername = githubUsername || null
     if (steamId !== undefined) data.steamId = steamId || null
     // Лимит в 7 проверяем и на сервере — не доверяем только клиентской валидации

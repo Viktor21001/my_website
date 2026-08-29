@@ -55,6 +55,7 @@ model User {
   avatar       String?
   bio          String?
   location     String?
+  timezone     String?  // IANA-идентификатор (Europe/Moscow) — используется часами в шапке
   ageGroup     AgeGroup @default(AGE_26_30)
   createdAt    DateTime @default(now())
 

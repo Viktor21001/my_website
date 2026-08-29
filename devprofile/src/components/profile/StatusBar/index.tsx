@@ -14,6 +14,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
 export function StatusBar() {
   const dispatch = useAppDispatch()
   const { status, statusText } = useAppSelector((state) => state.profile)
+  const timezone = useAppSelector((state) => state.auth.user?.timezone)
   const { player, isError } = useSteamPlayer()
 
   useEffect(() => {
@@ -70,14 +71,17 @@ export function StatusBar() {
       </div>
 
       {/* Часы — по центру */}
-      <HeaderClock />
+      <HeaderClock timezone={timezone} />
 
       <div />
     </div>
   )
 }
 
-function HeaderClock() {
+// timezone — IANA-идентификатор из Настроек (Intl.DateTimeFormat принимает
+// его напрямую); если не выбран — часы просто показывают время браузера,
+// как и раньше
+function HeaderClock({ timezone }: { timezone: string | null | undefined }) {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -85,8 +89,8 @@ function HeaderClock() {
     return () => clearInterval(id)
   }, [])
 
-  const date = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
-  const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const date = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: timezone || undefined })
+  const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: timezone || undefined })
 
   return (
     <div className="flex items-center gap-2 shrink-0">

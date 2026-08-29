@@ -15,6 +15,7 @@ export function serializeUser(user: User) {
     avatar: user.avatar,
     bio: user.bio,
     location: user.location,
+    timezone: user.timezone,
     ageGroup: toClientAgeGroup(user.ageGroup),
     createdAt: user.createdAt,
     githubUsername: user.githubUsername,
