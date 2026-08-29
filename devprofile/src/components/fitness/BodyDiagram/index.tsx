@@ -71,7 +71,7 @@ function lerp(a: number, b: number, t: number): number {
 function scaleFor(value: number, key: keyof typeof RANGES): number {
   const { min, max } = RANGES[key]
   const t = clamp((value - min) / (max - min), 0, 1)
-  return lerp(0.8, 1.3, t)
+  return lerp(0.85, 1.15, t)
 }
 
 interface Anchor { y: number; scale: number }
@@ -89,6 +89,14 @@ function scaleAtY(y: number, anchors: Anchor[]): number {
   return anchors[anchors.length - 1].scale
 }
 
+/*
+  Раньше здесь был жёсткий clamp смещения каждой точки от оси — при
+  выходе за порог все точки упирались в один и тот же предел и
+  контур схлопывался в прямую линию (рука выглядела сломанной палкой).
+  Диапазон scaleFor() уже сам по себе ограничен (0.85–1.15), поэтому
+  смещение и без того не улетает бесконечно — отдельный clamp здесь
+  был лишним и только портил форму.
+*/
 function scaleAroundAxis(points: Pt[], axisX: number, anchors: Anchor[]): Pt[] {
   return points.map(([x, y]): Pt => [axisX + (x - axisX) * scaleAtY(y, anchors), y])
 }
@@ -124,7 +132,7 @@ export function BodyDiagram() {
 
   if (!latest) {
     return (
-      <div className="dp-panel overflow-hidden" style={{ width: 230 }}>
+      <div className="dp-panel overflow-hidden" style={{ width: 153 }}>
         <div className="dp-section-title">Силуэт</div>
         <EmptyCard message="Добавь замер, чтобы увидеть силуэт" />
       </div>
@@ -165,18 +173,35 @@ function BodyDiagramFigure({ measurement: m }: { measurement: BodyMeasurement })
 
   const strokeStyle = { fill: 'none', stroke: 'var(--dp-border-light)', strokeWidth: 1.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
 
-  // Точки для выносок — конкретная точка на уже отмасштабированном контуре в нужном ряду
-  const pointAtY = (points: Pt[], targetY: number): Pt =>
-    points.reduce((best, p) => (Math.abs(p[1] - targetY) < Math.abs(best[1] - targetY) ? p : best), points[0])
+  /*
+    Точки для выносок ищем не по заранее угаданной высоте, а как реальный
+    локальный экстремум контура (самая выступающая или самая узкая точка)
+    внутри анатомического диапазона высот — на уже отмасштабированных
+    точках. Так стрелка всегда указывает на настоящий видимый изгиб линии,
+    а не на условную высоту, которая при экстремальном замере могла бы
+    не совпасть с тем, что реально нарисовано.
+  */
+  const mirrorPt = ([x, y]: Pt): Pt => [2 * CENTERLINE_X - x, y]
 
-  const chestPt = pointAtY(torsoLegLeft, 96)
-  const waistPt = pointAtY(torsoLegLeft, 130)
-  const hipsPt = pointAtY(torsoLegRight, 144)
-  const thighPt = pointAtY(torsoLegLeft, 240)
-  const bicepPt = pointAtY(armRight, 195)
+  // Всегда ищем на ЛЕВОЙ (немасштабированной по стороне) версии контура — там "шире" однозначно
+  // означает "меньше x". Для правых выносок результат затем зеркалим одной точкой.
+  function extremumInRange(points: Pt[], yMin: number, yMax: number, mode: 'widest' | 'narrowest'): Pt {
+    const inRange = points.filter((p) => p[1] >= yMin && p[1] <= yMax)
+    const pool = inRange.length > 0 ? inRange : points
+    return pool.reduce((best, p) => {
+      const better = mode === 'widest' ? p[0] < best[0] : p[0] > best[0]
+      return better ? p : best
+    })
+  }
+
+  const chestPt = extremumInRange(torsoLegLeft, 75, 128, 'widest')
+  const waistPt = extremumInRange(torsoLegLeft, 96, 144, 'narrowest')
+  const hipsPt = mirrorPt(extremumInRange(torsoLegLeft, 130, 210, 'widest'))
+  const thighPt = extremumInRange(torsoLegLeft, 195, 280, 'widest')
+  const bicepPt = mirrorPt(extremumInRange(armLeft, 90, 230, 'widest'))
 
   return (
-    <div className="dp-panel overflow-hidden" style={{ width: 230 }}>
+    <div className="dp-panel overflow-hidden" style={{ width: 153 }}>
       <div className="dp-section-title">Силуэт</div>
 
       <div className="p-2">
@@ -192,8 +217,8 @@ function BodyDiagramFigure({ measurement: m }: { measurement: BodyMeasurement })
           <Callout label="Талия" value={`${m.waistCm} см`} x1={12} y1={waistPt[1]} x2={waistPt[0]} y2={waistPt[1]} align="left" />
           <Callout label="Бедро" value={`${m.thighCm} см`} x1={12} y1={thighPt[1]} x2={thighPt[0]} y2={thighPt[1]} align="left" />
 
-          <Callout label="Бицепс" value={`${m.bicepCm} см`} x1={164} y1={bicepPt[1]} x2={bicepPt[0]} y2={bicepPt[1]} align="right" />
-          <Callout label="Бёдра" value={`${m.hipsCm} см`} x1={164} y1={hipsPt[1] - 4} x2={hipsPt[0]} y2={hipsPt[1]} align="right" />
+          <Callout label="Бицепс" value={`${m.bicepCm} см`} x1={168} y1={bicepPt[1]} x2={bicepPt[0]} y2={bicepPt[1]} align="right" />
+          <Callout label="Бёдра" value={`${m.hipsCm} см`} x1={168} y1={hipsPt[1] - 4} x2={hipsPt[0]} y2={hipsPt[1]} align="right" />
         </svg>
       </div>
 
