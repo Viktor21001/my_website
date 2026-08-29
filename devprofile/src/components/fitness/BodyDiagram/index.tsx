@@ -1,16 +1,27 @@
 /*
-  BodyDiagram — силуэт фигуры, ширина частей которого меняется по
-  последнему замеру (грудь/талия/бёдра/бицепс/бедро — те же поля,
-  что и в форме и истории замеров), с подписями и
-  линиями-выносками как на референсе с разметкой замеров, только в
-  стиле сайта: SVG-контур вместо реалистичного рисунка, без сторонних
-  библиотек.
+  BodyDiagram — контур фигуры по точкам, вручную размеченным пользователем
+  на референсной анатомической иллюстрации (обвёл силуэт координатами).
+  Правая половина в исходных точках была неполной (рука обрывалась на
+  бицепсе) — по договорённости с пользователем зеркалим левую половину,
+  так фигура всегда симметрична и без дыр в данных.
 
-  Каждое значение переводится в масштаб ширины через clamp+lerp в
-  своём биологически разумном диапазоне (см. RANGES) — так силуэт
-  реагирует на любое реальное значение, а не только на историю
-  замеров конкретного пользователя (в отличие от графика, диаграмма
-  не требует двух точек — достаточно одного замера).
+  Формат — контурная линия без заливки (как на референсе), а не сплошной
+  силуэт: три обведённые пользователем линии (голова, рука, нога+бок
+  торса) рендерятся как открытые сглаженные пути (smoothOpenPath — та же
+  идея квадратичных кривых через середины отрезков, что и раньше, только
+  для незамкнутой ломаной).
+
+  Между рукой и ногой в исходной трассировке есть разрыв — верх торса
+  (подмышка → грудь → талия) не был обведён отдельной линией. Эта часть
+  дорисована как синтетические опорные точки (TORSO_BRIDGE_PTS) и
+  сглаживается вместе с ногой в одну линию.
+
+  Динамика: контур не перерисовывается с нуля под замеры — точки остаются
+  те же (сохраняется характер обведённой линии), но каждая точка сдвигается
+  по X от своей анатомической оси на коэффициент масштаба, который плавно
+  меняется по Y между опорными высотами (грудь/талия/бёдра/бедро на торсе
+  и ноге, бицепс на руке) — тот же принцип lerp/clamp, что и в предыдущей
+  версии, только применяется поверх реальных, а не сгенерированных точек.
 */
 
 import { useMemo } from 'react'
@@ -18,6 +29,28 @@ import type { BodyMeasurement } from '../../../types/fitness'
 import { useMeasurements } from '../../../hooks/useFitnessData'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { EmptyCard } from '../../shared/Card'
+
+type Pt = [number, number]
+
+// ── Точки, обведённые пользователем по референсу (авто-разбито по разрывам между соседними точками) ──
+const HEAD_PTS: Pt[] = [[87,11],[81,12],[76,14],[72,19],[70,23],[69,28],[69,33],[69,37],[67,37],[66,37],[65,40],[66,43],[67,46],[68,49],[70,52],[72,54],[73,57],[73,61],[74,64],[75,66],[79,70],[81,70],[86,70],[89,70],[93,70],[97,67],[100,66],[102,64],[103,61],[102,57],[102,54],[105,52],[107,50],[109,47],[109,44],[109,41],[110,38],[110,36],[106,37],[106,33],[107,30],[107,28],[107,26],[106,23],[105,20],[103,18],[101,17],[98,14],[95,13],[91,12],[88,11]]
+
+// Плечо → кисть → обратно вверх по внутреннему краю руки
+const ARM_PTS: Pt[] = [[74,68],[74,72],[72,75],[70,77],[63,79],[63,82],[58,83],[56,85],[50,86],[48,86],[44,87],[39,88],[36,90],[34,93],[30,98],[29,101],[27,104],[26,107],[25,111],[25,114],[26,118],[26,121],[26,124],[26,126],[26,127],[26,129],[25,130],[24,132],[24,135],[22,144],[22,147],[23,153],[22,157],[22,162],[22,166],[21,169],[20,173],[20,177],[20,180],[20,185],[20,190],[20,193],[20,195],[20,198],[20,202],[21,205],[20,210],[20,214],[20,218],[21,222],[21,228],[22,230],[22,234],[23,237],[23,240],[24,243],[25,245],[25,248],[25,252],[24,256],[23,259],[23,263],[24,266],[26,271],[29,272],[32,275],[36,276],[38,275],[41,274],[43,272],[43,269],[42,268],[41,266],[40,263],[39,261],[39,257],[38,256],[42,265],[42,260],[43,258],[44,254],[42,252],[39,250],[38,247],[37,245],[36,242],[34,239],[34,235],[34,232],[35,227],[37,223],[37,220],[38,216],[39,210],[39,207],[40,203],[40,199],[40,197],[41,191],[41,186],[40,181],[40,177],[41,172],[41,165],[42,157],[43,154],[44,148],[45,143],[45,140],[45,133],[44,130],[43,122],[45,123],[46,125],[49,127],[51,130],[54,132],[58,134],[60,134],[66,134],[69,133],[74,131],[76,130]]
+
+// Бедро (таз) → ступня → обратно вверх по внутреннему краю ноги
+const LEG_PTS: Pt[] = [[45,144],[46,149],[49,153],[51,156],[52,161],[54,165],[55,171],[54,184],[54,187],[54,191],[52,196],[50,201],[49,207],[50,213],[50,218],[50,220],[49,224],[48,227],[48,231],[48,233],[48,232],[47,240],[49,247],[49,252],[50,259],[50,267],[51,276],[53,284],[54,297],[56,299],[57,304],[59,310],[60,314],[61,316],[62,319],[63,323],[63,328],[61,334],[60,338],[60,345],[58,349],[58,356],[57,364],[57,378],[59,384],[62,389],[66,404],[67,414],[69,416],[70,420],[71,424],[71,429],[66,434],[63,439],[61,442],[58,446],[59,447],[63,448],[72,450],[76,449],[81,448],[83,446],[86,444],[86,442],[86,438],[88,435],[87,432],[85,429],[85,427],[84,421],[82,416],[82,412],[81,409],[81,402],[81,399],[82,392],[82,389],[84,376],[82,363],[82,359],[82,355],[86,347],[87,342],[88,335],[85,321],[83,313]]
+
+/*
+  Верх торса (подмышка → грудь → талия) в исходной трассировке не обведён
+  отдельной линией — разрыв между концом ARM_PTS и началом LEG_PTS.
+  Достраиваем синтетически: подмышка стыкуется с ARM_PTS[0], талия — с
+  LEG_PTS[0] (бедро).
+*/
+const TORSO_BRIDGE_PTS: Pt[] = [[74, 70], [68, 96], [73, 130]]
+
+const CENTERLINE_X = 87.5
+const SHOULDER_AXIS_X = 74 // точка крепления руки к плечу — локальная ось для масштабирования руки
 
 const RANGES = {
   chestCm: { min: 75, max: 135 },
@@ -27,46 +60,62 @@ const RANGES = {
   thighCm: { min: 40, max: 75 },
 } as const
 
-const SCALE_MIN = 0.8
-const SCALE_MAX = 1.3
-
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v))
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t
 }
 
 function scaleFor(value: number, key: keyof typeof RANGES): number {
   const { min, max } = RANGES[key]
   const t = clamp((value - min) / (max - min), 0, 1)
-  return SCALE_MIN + t * (SCALE_MAX - SCALE_MIN)
+  return lerp(0.8, 1.3, t)
 }
 
-// Базовые (при масштабе 1.0) полуширины частей тела в координатах viewBox
-const BASE = {
-  chestHalf: 32,
-  waistHalf: 24,
-  hipsHalf:  30,
-  bicepHalf: 9,
-  thighHalf: 13,
+interface Anchor { y: number; scale: number }
+
+// Плавно интерполирует масштаб между опорными высотами; вне диапазона — берёт крайнее значение
+function scaleAtY(y: number, anchors: Anchor[]): number {
+  if (y <= anchors[0].y) return anchors[0].scale
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i], b = anchors[i + 1]
+    if (y >= a.y && y <= b.y) {
+      const t = (y - a.y) / (b.y - a.y || 1)
+      return lerp(a.scale, b.scale, t)
+    }
+  }
+  return anchors[anchors.length - 1].scale
 }
 
-const ANKLE_HALF = 9 // фиксированная полуширина щиколотки — эта часть тела не замеряется
-
-const CX = 120
-const Y = {
-  head: 28,
-  neckTop: 44,
-  shoulders: 60,
-  chestMid: 92,
-  waist: 140,
-  hips: 168,
-  armWrist: 208,
-  thigh: 224, // самая широкая точка ноги — сюда указывает замер "Бедро", а не к щиколотке
-  legEnd: 328,
-  footEnd: 344,
+function scaleAroundAxis(points: Pt[], axisX: number, anchors: Anchor[]): Pt[] {
+  return points.map(([x, y]): Pt => [axisX + (x - axisX) * scaleAtY(y, anchors), y])
 }
 
-function poly(points: [number, number][]): string {
-  return points.map(([x, y]) => `${x},${y}`).join(' ')
+function mirrorX(points: Pt[]): Pt[] {
+  return points.map(([x, y]): Pt => [2 * CENTERLINE_X - x, y])
+}
+
+/*
+  Сглаживает открытую (незамкнутую) ломаную — тот же приём с квадратичными
+  кривыми через середины отрезков, что и в закрытых фигурах прошлой
+  версии, но без замыкания в петлю.
+*/
+function smoothOpenPath(points: Pt[]): string {
+  if (points.length < 2) return ''
+  const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  let d = `M ${points[0][0]},${points[0][1]}`
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i]
+    if (i === points.length - 1) {
+      d += ` L ${p[0]},${p[1]}`
+    } else {
+      const m = mid(p, points[i + 1])
+      d += ` Q ${p[0]},${p[1]} ${m[0]},${m[1]}`
+    }
+  }
+  return d
 }
 
 export function BodyDiagram() {
@@ -86,97 +135,65 @@ export function BodyDiagram() {
 }
 
 function BodyDiagramFigure({ measurement: m }: { measurement: BodyMeasurement }) {
-  const chestHalf = BASE.chestHalf * scaleFor(m.chestCm, 'chestCm')
-  const waistHalf = BASE.waistHalf * scaleFor(m.waistCm, 'waistCm')
-  const hipsHalf  = BASE.hipsHalf  * scaleFor(m.hipsCm, 'hipsCm')
-  const bicepHalf = BASE.bicepHalf * scaleFor(m.bicepCm, 'bicepCm')
-  const thighHalf = BASE.thighHalf * scaleFor(m.thighCm, 'thighCm')
+  const chestScale = scaleFor(m.chestCm, 'chestCm')
+  const waistScale = scaleFor(m.waistCm, 'waistCm')
+  const hipsScale  = scaleFor(m.hipsCm, 'hipsCm')
+  const bicepScale = scaleFor(m.bicepCm, 'bicepCm')
+  const thighScale = scaleFor(m.thighCm, 'thighCm')
 
-  // Торс — многоугольник по 4 опорным рядам (плечи → грудь → талия → бёдра)
-  const torso = poly([
-    [CX - chestHalf, Y.shoulders],
-    [CX - chestHalf * 0.92, Y.chestMid],
-    [CX - waistHalf, Y.waist],
-    [CX - hipsHalf, Y.hips],
-    [CX + hipsHalf, Y.hips],
-    [CX + waistHalf, Y.waist],
-    [CX + chestHalf * 0.92, Y.chestMid],
-    [CX + chestHalf, Y.shoulders],
-  ])
+  const torsoLegAnchors: Anchor[] = [
+    { y: 70,  scale: 1 },           // подмышка — не замеряется, фиксирована
+    { y: 96,  scale: chestScale },  // грудь
+    { y: 130, scale: waistScale },  // талия
+    { y: 144, scale: hipsScale },   // бёдра (таз)
+    { y: 240, scale: thighScale },  // бедро (верх ноги)
+    { y: 300, scale: 1 },           // голень/щиколотка/стопа — не замеряются
+  ]
 
-  // Руки — трапеция от плеча до запястья, снаружи торса
-  const armCenterOffset = chestHalf + bicepHalf * 0.9
-  function armPoly(side: 1 | -1): string {
-    const cx = CX + side * armCenterOffset
-    return poly([
-      [cx - bicepHalf, Y.shoulders + 5],
-      [cx - bicepHalf * 0.55, Y.armWrist],
-      [cx + bicepHalf * 0.55, Y.armWrist],
-      [cx + bicepHalf, Y.shoulders + 5],
-    ])
-  }
+  const armAnchors: Anchor[] = [
+    { y: 68,  scale: 1 },
+    { y: 90,  scale: 1 },
+    { y: 195, scale: bicepScale }, // бицепс — самая широкая точка руки в трассировке
+    { y: 245, scale: 1 },          // кисть — не замеряется
+  ]
 
-  /*
-    Нога — от бедра (таз) через самую широкую точку — верхнюю часть ноги
-    на уровне Y.thigh, которую и задаёт замер "Бедро" — сужается к
-    щиколотке (Y.legEnd). Раньше замер "Бедро" ошибочно управлял
-    шириной у щиколотки, из-за чего широкая часть ноги оказывалась
-    внизу, у стоп.
-  */
-  function legPoly(side: 1 | -1): string {
-    const innerGap = 4
-    const hipInner = CX + side * innerGap
-    const hipOuter = CX + side * hipsHalf * 0.95
-    const thighOuter = CX + side * thighHalf
-    const thighInner = CX + side * thighHalf * 0.35
-    const ankleOuter = CX + side * ANKLE_HALF
-    const ankleInner = CX + side * ANKLE_HALF * 0.3
-    return poly([
-      [hipInner, Y.hips],
-      [hipOuter, Y.hips],
-      [thighOuter, Y.thigh],
-      [ankleOuter, Y.legEnd],
-      [ankleInner, Y.legEnd],
-      [thighInner, Y.thigh],
-    ])
-  }
+  const torsoLegLeft = scaleAroundAxis([...TORSO_BRIDGE_PTS, ...LEG_PTS], CENTERLINE_X, torsoLegAnchors)
+  const armLeft = scaleAroundAxis(ARM_PTS, SHOULDER_AXIS_X, armAnchors)
 
-  const figureStyle = { fill: 'var(--dp-bg-card)', stroke: 'var(--dp-border-light)', strokeWidth: 1.5 }
+  const torsoLegRight = mirrorX(torsoLegLeft)
+  const armRight = mirrorX(armLeft)
+
+  const strokeStyle = { fill: 'none', stroke: 'var(--dp-border-light)', strokeWidth: 1.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
+
+  // Точки для выносок — конкретная точка на уже отмасштабированном контуре в нужном ряду
+  const pointAtY = (points: Pt[], targetY: number): Pt =>
+    points.reduce((best, p) => (Math.abs(p[1] - targetY) < Math.abs(best[1] - targetY) ? p : best), points[0])
+
+  const chestPt = pointAtY(torsoLegLeft, 96)
+  const waistPt = pointAtY(torsoLegLeft, 130)
+  const hipsPt = pointAtY(torsoLegRight, 144)
+  const thighPt = pointAtY(torsoLegLeft, 240)
+  const bicepPt = pointAtY(armRight, 195)
 
   return (
     <div className="dp-panel overflow-hidden" style={{ width: 230 }}>
       <div className="dp-section-title">Силуэт</div>
 
       <div className="p-2">
-        <svg viewBox="0 0 240 380" width="100%" style={{ display: 'block', overflow: 'visible' }}>
-          {/* Ноги */}
-          <polygon points={legPoly(-1)} style={figureStyle} />
-          <polygon points={legPoly(1)} style={figureStyle} />
-          {/* Ступни */}
-          <ellipse cx={CX - ANKLE_HALF * 0.6} cy={Y.footEnd} rx={12} ry={5} style={figureStyle} />
-          <ellipse cx={CX + ANKLE_HALF * 0.6} cy={Y.footEnd} rx={12} ry={5} style={figureStyle} />
-
-          {/* Руки */}
-          <polygon points={armPoly(-1)} style={figureStyle} />
-          <polygon points={armPoly(1)} style={figureStyle} />
-          {/* Кисти */}
-          <circle cx={CX - armCenterOffset} cy={Y.armWrist + 6} r={6} style={figureStyle} />
-          <circle cx={CX + armCenterOffset} cy={Y.armWrist + 6} r={6} style={figureStyle} />
-
-          {/* Торс */}
-          <polygon points={torso} style={figureStyle} />
-
-          {/* Шея и голова */}
-          <rect x={CX - 8} y={Y.neckTop} width={16} height={Y.shoulders - Y.neckTop + 4} style={figureStyle} />
-          <circle cx={CX} cy={Y.head} r={17} style={figureStyle} />
+        <svg viewBox="0 0 176 460" width="100%" style={{ display: 'block', overflow: 'visible' }}>
+          <path d={smoothOpenPath(HEAD_PTS)} style={strokeStyle} />
+          <path d={smoothOpenPath(armLeft)} style={strokeStyle} />
+          <path d={smoothOpenPath(armRight)} style={strokeStyle} />
+          <path d={smoothOpenPath(torsoLegLeft)} style={strokeStyle} />
+          <path d={smoothOpenPath(torsoLegRight)} style={strokeStyle} />
 
           {/* ── Подписи-выноски ── */}
-          <Callout label="Грудь" value={`${m.chestCm} см`} x1={30} y1={Y.chestMid - 10} x2={CX - chestHalf} y2={Y.chestMid - 10} align="left" />
-          <Callout label="Талия" value={`${m.waistCm} см`} x1={30} y1={Y.waist} x2={CX - waistHalf} y2={Y.waist} align="left" />
-          <Callout label="Бедро" value={`${m.thighCm} см`} x1={30} y1={Y.thigh} x2={CX - thighHalf} y2={Y.thigh} align="left" />
+          <Callout label="Грудь" value={`${m.chestCm} см`} x1={12} y1={chestPt[1] - 4} x2={chestPt[0]} y2={chestPt[1]} align="left" />
+          <Callout label="Талия" value={`${m.waistCm} см`} x1={12} y1={waistPt[1]} x2={waistPt[0]} y2={waistPt[1]} align="left" />
+          <Callout label="Бедро" value={`${m.thighCm} см`} x1={12} y1={thighPt[1]} x2={thighPt[0]} y2={thighPt[1]} align="left" />
 
-          <Callout label="Бицепс" value={`${m.bicepCm} см`} x1={210} y1={Y.shoulders + 12} x2={CX + armCenterOffset + bicepHalf} y2={Y.shoulders + 12} align="right" />
-          <Callout label="Бёдра" value={`${m.hipsCm} см`} x1={210} y1={Y.hips} x2={CX + hipsHalf} y2={Y.hips} align="right" />
+          <Callout label="Бицепс" value={`${m.bicepCm} см`} x1={164} y1={bicepPt[1]} x2={bicepPt[0]} y2={bicepPt[1]} align="right" />
+          <Callout label="Бёдра" value={`${m.hipsCm} см`} x1={164} y1={hipsPt[1] - 4} x2={hipsPt[0]} y2={hipsPt[1]} align="right" />
         </svg>
       </div>
 
