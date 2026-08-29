@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../hooks/redux'
 import { useSteamPlayer } from '../../../hooks/useSteam'
 import { setStatus } from '../../../store/slices/profileSlice'
@@ -35,35 +35,64 @@ export function StatusBar() {
 
   return (
     <div
-      className="flex items-center gap-2.5 px-4 py-2 text-xs"
+      className="grid items-center px-4 py-2 text-xs"
       style={{
+        gridTemplateColumns: '1fr auto 1fr',
         background:   'rgba(0,0,0,0.25)',
         borderBottom: '1px solid var(--dp-border)',
       }}
     >
-      {/* Цветная точка */}
-      <div
-        className="w-2 h-2 rounded-full shrink-0 dp-status-pulse"
-        style={{ background: config.dot }}
-      />
+      {/* Статус — слева */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        {/* Цветная точка */}
+        <div
+          className="w-2 h-2 rounded-full shrink-0 dp-status-pulse"
+          style={{ background: config.dot }}
+        />
 
-      {/* Статус */}
-      <span className="font-medium" style={{ color: config.color }}>
-        {config.label}
-      </span>
+        {/* Статус */}
+        <span className="font-medium shrink-0" style={{ color: config.color }}>
+          {config.label}
+        </span>
 
-      {/* Уточнение */}
-      {statusText && (
-        <>
-          <span style={{ color: 'var(--dp-border-light)' }}>·</span>
-          <span
-            className="truncate font-mono text-xs"
-            style={{ color: 'var(--dp-text-code)' }}
-          >
-            {statusText}
-          </span>
-        </>
-      )}
+        {/* Уточнение */}
+        {statusText && (
+          <>
+            <span className="shrink-0" style={{ color: 'var(--dp-border-light)' }}>·</span>
+            <span
+              className="truncate font-mono text-xs"
+              style={{ color: 'var(--dp-text-code)' }}
+            >
+              {statusText}
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Часы — по центру */}
+      <HeaderClock />
+
+      <div />
+    </div>
+  )
+}
+
+function HeaderClock() {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const date = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+  const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <span style={{ color: 'var(--dp-text-secondary)' }}>{date}</span>
+      <span style={{ color: 'var(--dp-border-light)' }}>·</span>
+      <span className="font-mono tabular-nums" style={{ color: 'var(--dp-text-code)' }}>{time}</span>
     </div>
   )
 }
