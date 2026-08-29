@@ -8,12 +8,17 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
-import { useWorkouts, useInBodyResults } from '../../../hooks/useFitnessData'
+import { extractApiError } from '../../../utils/apiError'
+import { useWorkouts, useInBodyResults, useExercises, useMeasurements, useAddWorkoutMutation } from '../../../hooks/useFitnessData'
+import { getLatestBodyWeight } from '../../../utils/workoutWeights'
+import { SWIMMING_EXERCISE_NAME, DEFAULT_REST_SECONDS } from '../../../utils/workoutGenerator'
 import { WorkoutCard } from '../WorkoutCard'
 import { MeasurementsHistory } from '../MeasurementsHistory'
 import { AddWorkoutForm } from '../AddWorkoutForm'
 import { AddInBodyForm } from '../AddInBodyForm'
+import { WorkoutPlayer, type PlayerStep } from '../WorkoutPlayer'
 import { EmptyCard } from '../../shared/Card'
+import type { Workout } from '../../../types/fitness'
 
 type Tab = 'workouts' | 'measurements' | 'inbody'
 
@@ -23,18 +28,84 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'inbody',       label: 'InBody',      icon: '🔬' },
 ]
 
+interface PlayerLaunch {
+  steps: PlayerStep[]
+  restSeconds: number
+}
+
 export function WorkoutLog() {
   const [activeTab, setActiveTab] = useState<Tab>('workouts')
 
   const { workouts } = useWorkouts()
   const { inbodyResults } = useInBodyResults()
+  const { exercises } = useExercises()
+  const { measurements } = useMeasurements()
+  const [addWorkout, { error: repeatError }] = useAddWorkoutMutation()
+
+  const [player, setPlayer] = useState<PlayerLaunch | null>(null)
+  const [repeatingId, setRepeatingId] = useState<string | null>(null)
 
   const workoutsDesc = [...workouts].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   )
   const inbodyDesc = sortByDateAsc(inbodyResults).reverse()
 
+  // Повтор тренировки из истории: пересохраняет тот же набор подходов с
+  // сегодняшней датой и сразу открывает плеер — то же самое, что делает
+  // «Утвердить тренировку» в AddWorkoutForm, только вход из карточки
+  // истории. Плавание в плеер не заходит — просто пересохраняется как есть,
+  // как и при обычном добавлении.
+  async function handleRepeat(workout: Workout) {
+    setRepeatingId(workout.id)
+    try {
+      const isSwim = workout.sets.every((s) => s.exerciseName === SWIMMING_EXERCISE_NAME)
+      if (isSwim) {
+        await addWorkout({
+          date: new Date().toISOString(),
+          title: workout.title,
+          durationMin: workout.durationMin,
+          notes: workout.notes,
+          sets: workout.sets.map((s) => ({
+            exerciseId: s.exerciseId, setNumber: s.setNumber, reps: s.reps, weightKg: s.weightKg,
+          })),
+        }).unwrap()
+        return
+      }
+
+      const sets = workout.sets.map((s) => {
+        const exercise = exercises.find((e) => e.id === s.exerciseId)
+        // Вес тела мог измениться со времени первой тренировки — берём актуальный
+        const weightKg = exercise?.bodyweightOnly ? (getLatestBodyWeight(measurements) ?? s.weightKg) : s.weightKg
+        return { exerciseId: s.exerciseId, setNumber: s.setNumber, reps: s.reps, weightKg }
+      })
+
+      await addWorkout({
+        date: new Date().toISOString(),
+        title: workout.title,
+        durationMin: workout.durationMin,
+        sets,
+      }).unwrap()
+
+      const steps: PlayerStep[] = sets.map((s) => {
+        const exercise = exercises.find((e) => e.id === s.exerciseId)
+        return {
+          exerciseName: exercise?.name ?? '',
+          isTimeBased: exercise?.isTimeBased ?? false,
+          target: s.reps,
+          weightKg: s.weightKg,
+          bodyweightOnly: exercise?.bodyweightOnly ?? false,
+        }
+      })
+      setPlayer({ steps, restSeconds: DEFAULT_REST_SECONDS })
+    } catch {
+      // ошибка уже отражена через repeatError ниже
+    } finally {
+      setRepeatingId(null)
+    }
+  }
+
   return (
+    <>
     <motion.div className="dp-panel" variants={staggerItemVariants}>
       {/* Шапка с вкладками */}
       <div
@@ -82,10 +153,15 @@ export function WorkoutLog() {
       >
         {activeTab === 'workouts' && (
           <div className="flex flex-col">
-            <AddWorkoutForm />
+            <AddWorkoutForm onConfirm={setPlayer} />
+            {repeatError && (
+              <div className="dp-error mx-3">{extractApiError(repeatError, 'Не удалось повторить тренировку')}</div>
+            )}
             {workoutsDesc.length === 0
               ? <EmptyCard message="Тренировок пока нет" />
-              : workoutsDesc.map((w) => <WorkoutCard key={w.id} workout={w} />)}
+              : workoutsDesc.map((w) => (
+                <WorkoutCard key={w.id} workout={w} onRepeat={handleRepeat} isRepeating={repeatingId === w.id} />
+              ))}
           </div>
         )}
 
@@ -121,6 +197,8 @@ export function WorkoutLog() {
         )}
       </motion.div>
     </motion.div>
+    {player && <WorkoutPlayer steps={player.steps} restSeconds={player.restSeconds} onClose={() => setPlayer(null)} />}
+    </>
   )
 }
 

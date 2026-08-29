@@ -42,12 +42,34 @@ export type MuscleGroup =
   | 'core'
   | 'cardio'
 
+// Названо experienceLevel/ExperienceLevel, а не level — level уже занят
+// геймификационным XP-уровнем фитнес-профиля (см. fitnessSlice.ts)
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced'
+
 export interface Exercise {
   id: string
   name: string
   muscleGroup: MuscleGroup
   equipment?: string
   description?: string
+  homeFriendly: boolean
+  compound: boolean
+  minLevel: ExperienceLevel
+  // bodyweightOnly — вес не вводится руками, в подходе фигурирует вес тела
+  // isTimeBased    — WorkoutSet.reps хранит минуты, а не количество повторов
+  bodyweightOnly: boolean
+  isTimeBased: boolean
+}
+
+// Конструктор тренировок (WorkoutBuilder) — цель и место тренировки
+export type WorkoutGoal = 'weight_loss' | 'lean_toning' | 'muscle_gain' | 'strength'
+export type WorkoutLocation = 'home' | 'gym'
+
+// Плавание — изолированная запись: стиль + количество проплытых бассейнов
+export type SwimStyle = 'crawl' | 'breaststroke' | 'backstroke' | 'butterfly'
+export interface SwimStyleEntry {
+  style: SwimStyle
+  lengths: number
 }
 
 export interface WorkoutSet {

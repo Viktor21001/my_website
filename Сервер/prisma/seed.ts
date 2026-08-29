@@ -14,7 +14,7 @@
   перед вставкой удаляются и создаются заново.
 */
 
-import { PrismaClient, MuscleGroup } from '@prisma/client'
+import { PrismaClient, MuscleGroup, ExperienceLevel } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { CLIENT_TO_AGE_GROUP, type ClientAgeGroup } from '../src/lib/ageGroup'
 
@@ -26,23 +26,65 @@ function daysAgo(n: number): Date {
   return d
 }
 
-// ─── Упражнения (как в старом MOCK_EXERCISES) ─────────────────────
-const EXERCISES: { id: string; name: string; muscleGroup: MuscleGroup; equipment: string }[] = [
-  { id: 'ex1', name: 'Жим штанги лёжа', muscleGroup: MuscleGroup.chest, equipment: 'Штанга' },
-  { id: 'ex2', name: 'Жим гантелей на наклонной', muscleGroup: MuscleGroup.chest, equipment: 'Гантели' },
-  { id: 'ex3', name: 'Отжимания на брусьях', muscleGroup: MuscleGroup.chest, equipment: 'Брусья' },
-  { id: 'ex4', name: 'Становая тяга', muscleGroup: MuscleGroup.back, equipment: 'Штанга' },
-  { id: 'ex5', name: 'Подтягивания', muscleGroup: MuscleGroup.back, equipment: 'Турник' },
-  { id: 'ex6', name: 'Тяга штанги в наклоне', muscleGroup: MuscleGroup.back, equipment: 'Штанга' },
-  { id: 'ex7', name: 'Приседания со штангой', muscleGroup: MuscleGroup.legs, equipment: 'Штанга' },
-  { id: 'ex8', name: 'Жим ногами', muscleGroup: MuscleGroup.legs, equipment: 'Тренажёр' },
-  { id: 'ex9', name: 'Выпады с гантелями', muscleGroup: MuscleGroup.legs, equipment: 'Гантели' },
-  { id: 'ex10', name: 'Жим штанги стоя', muscleGroup: MuscleGroup.shoulders, equipment: 'Штанга' },
-  { id: 'ex11', name: 'Махи гантелями в стороны', muscleGroup: MuscleGroup.shoulders, equipment: 'Гантели' },
-  { id: 'ex12', name: 'Подъём штанги на бицепс', muscleGroup: MuscleGroup.arms, equipment: 'Штанга' },
-  { id: 'ex13', name: 'Французский жим', muscleGroup: MuscleGroup.arms, equipment: 'Гантели' },
-  { id: 'ex14', name: 'Скручивания на пресс', muscleGroup: MuscleGroup.core, equipment: 'Коврик' },
-  { id: 'ex15', name: 'Бег на дорожке', muscleGroup: MuscleGroup.cardio, equipment: 'Дорожка' },
+/*
+  Упражнения — теперь ещё и с тегами для конструктора тренировок
+  (WorkoutBuilder, devprofile\src\utils\workoutGenerator.ts):
+    homeFriendly   — выполнимо дома одним весом тела, без зального оборудования
+    compound       — базовое многосуставное упражнение (присед/тяга/жим)
+    minLevel       — минимальный уровень подготовки, с которого оно уместно
+    bodyweightOnly — вес не вводится руками, в подходе используется вес тела
+                     (см. devprofile\src\utils\workoutWeights.ts) — true для
+                     всего, что не делается со штангой/гантелями/на тренажёре
+    isTimeBased    — WorkoutSet.reps хранит минуты, а не повторы (планка,
+                     бег, велотренажёр, эллипсоид, скакалка)
+
+  ex1..ex15 — исходный каталог (id сохранены, чтобы не потерять связи
+  с уже существующими WorkoutSet у ботов и реальных пользователей).
+  ex16..ex28 — новые: домашние упражнения с собственным весом, кардио
+  для ВИИТ/дома, пара доп. тренажёров и отдельная запись «Плавание»
+  (изолированная сущность — ищется по имени, не по id; bodyweightOnly/
+  isTimeBased у неё не используются, т.к. плавание не участвует в этой
+  логике вовсе — см. workoutGenerator.ts/buildSwimmingWorkout).
+*/
+const EXERCISES: {
+  id: string
+  name: string
+  muscleGroup: MuscleGroup
+  equipment?: string
+  homeFriendly: boolean
+  compound: boolean
+  minLevel: ExperienceLevel
+  bodyweightOnly: boolean
+  isTimeBased: boolean
+}[] = [
+  { id: 'ex1', name: 'Жим штанги лёжа', muscleGroup: MuscleGroup.chest, equipment: 'Штанга', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex2', name: 'Жим гантелей на наклонной', muscleGroup: MuscleGroup.chest, equipment: 'Гантели', homeFriendly: false, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex3', name: 'Отжимания на брусьях', muscleGroup: MuscleGroup.chest, equipment: 'Брусья', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex4', name: 'Становая тяга', muscleGroup: MuscleGroup.back, equipment: 'Штанга', homeFriendly: false, compound: true, minLevel: ExperienceLevel.advanced, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex5', name: 'Подтягивания', muscleGroup: MuscleGroup.back, equipment: 'Турник', homeFriendly: true, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex6', name: 'Тяга штанги в наклоне', muscleGroup: MuscleGroup.back, equipment: 'Штанга', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex7', name: 'Приседания со штангой', muscleGroup: MuscleGroup.legs, equipment: 'Штанга', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex8', name: 'Жим ногами', muscleGroup: MuscleGroup.legs, equipment: 'Тренажёр', homeFriendly: false, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex9', name: 'Выпады с гантелями', muscleGroup: MuscleGroup.legs, equipment: 'Гантели', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex10', name: 'Жим штанги стоя', muscleGroup: MuscleGroup.shoulders, equipment: 'Штанга', homeFriendly: false, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex11', name: 'Махи гантелями в стороны', muscleGroup: MuscleGroup.shoulders, equipment: 'Гантели', homeFriendly: false, compound: false, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex12', name: 'Подъём штанги на бицепс', muscleGroup: MuscleGroup.arms, equipment: 'Штанга', homeFriendly: false, compound: false, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex13', name: 'Французский жим', muscleGroup: MuscleGroup.arms, equipment: 'Гантели', homeFriendly: false, compound: false, minLevel: ExperienceLevel.intermediate, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex14', name: 'Скручивания на пресс', muscleGroup: MuscleGroup.core, equipment: 'Коврик', homeFriendly: true, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex15', name: 'Бег на дорожке', muscleGroup: MuscleGroup.cardio, equipment: 'Дорожка', homeFriendly: false, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: true },
+  { id: 'ex16', name: 'Отжимания', muscleGroup: MuscleGroup.chest, homeFriendly: true, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex17', name: 'Приседания без веса', muscleGroup: MuscleGroup.legs, homeFriendly: true, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex18', name: 'Планка', muscleGroup: MuscleGroup.core, equipment: 'Коврик', homeFriendly: true, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: true },
+  { id: 'ex19', name: 'Выпады без веса', muscleGroup: MuscleGroup.legs, homeFriendly: true, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex20', name: 'Ягодичный мостик', muscleGroup: MuscleGroup.legs, equipment: 'Коврик', homeFriendly: true, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex21', name: 'Супермен (гиперэкстензия лёжа)', muscleGroup: MuscleGroup.back, equipment: 'Коврик', homeFriendly: true, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex22', name: 'Бёрпи', muscleGroup: MuscleGroup.cardio, homeFriendly: true, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex23', name: 'Прыжки на скакалке', muscleGroup: MuscleGroup.cardio, equipment: 'Скакалка', homeFriendly: true, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: true },
+  { id: 'ex24', name: 'Приседания с выпрыгиванием', muscleGroup: MuscleGroup.cardio, homeFriendly: true, compound: true, minLevel: ExperienceLevel.intermediate, bodyweightOnly: true, isTimeBased: false },
+  { id: 'ex25', name: 'Велотренажёр', muscleGroup: MuscleGroup.cardio, equipment: 'Велотренажёр', homeFriendly: false, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: true },
+  { id: 'ex26', name: 'Эллипсоид', muscleGroup: MuscleGroup.cardio, equipment: 'Эллипсоид', homeFriendly: false, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: true, isTimeBased: true },
+  { id: 'ex27', name: 'Жим от груди в тренажёре', muscleGroup: MuscleGroup.chest, equipment: 'Тренажёр', homeFriendly: false, compound: true, minLevel: ExperienceLevel.beginner, bodyweightOnly: false, isTimeBased: false },
+  { id: 'ex28', name: 'Плавание', muscleGroup: MuscleGroup.cardio, equipment: 'Бассейн', homeFriendly: false, compound: false, minLevel: ExperienceLevel.beginner, bodyweightOnly: false, isTimeBased: false },
 ]
 
 // ─── Боты-конкуренты ────────────────────────────────────────────

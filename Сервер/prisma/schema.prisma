@@ -38,6 +38,14 @@ enum MuscleGroup {
   cardio
 }
 
+// Минимальный уровень подготовки, с которого упражнение уместно
+// (используется конструктором тренировок для фильтрации каталога)
+enum ExperienceLevel {
+  beginner
+  intermediate
+  advanced
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -106,6 +114,20 @@ model Exercise {
   muscleGroup MuscleGroup
   equipment   String?
   description String?
+
+  // Теги для конструктора тренировок (WorkoutBuilder):
+  // homeFriendly — выполнимо дома одним весом тела (без зального оборудования)
+  // compound     — базовое многосуставное упражнение (присед/тяга/жим и т.п.)
+  // minLevel     — с какого уровня подготовки упражнение уместно
+  homeFriendly Boolean         @default(false)
+  compound     Boolean         @default(false)
+  minLevel     ExperienceLevel @default(beginner)
+
+  // bodyweightOnly — вес не вводится руками, используется вес тела из замеров
+  // isTimeBased    — WorkoutSet.reps на самом деле хранит минуты, а не повторы
+  //                  (планка, бег, велотренажёр и т.п.)
+  bodyweightOnly Boolean @default(false)
+  isTimeBased    Boolean @default(false)
 
   sets WorkoutSet[]
 }
