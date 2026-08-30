@@ -9,7 +9,9 @@
   сайта дефолтом для чужого нового аккаунта неверно.
 */
 
+import { useState } from 'react'
 import { useAppSelector } from './redux'
+import { extractApiError } from '../utils/apiError'
 import {
   useGetSteamPlayerQuery,
   useGetRecentGamesQuery,
@@ -17,7 +19,11 @@ import {
   useGetWishlistCountQuery,
   useGetGamesAchievementsQuery,
 } from '../store/api/steamApi'
-import { useGetSteamAchievementsCacheQuery, useSyncSteamAchievementsMutation } from '../store/api/backendApi'
+import {
+  useGetSteamAchievementsCacheQuery,
+  useStartSteamAchievementsSyncMutation,
+  useLazyGetSteamAchievementsSyncStatusQuery,
+} from '../store/api/backendApi'
 import { SteamPersonaState } from '../types/steam'
 import type { SteamGame, SteamGameAchievementsCache } from '../types/steam'
 import type { UserStatus } from '../types/profile'
@@ -196,16 +202,68 @@ export function useRecentGamesAchievements() {
   return { achievements, isLoading, isError }
 }
 
+const SYNC_POLL_MS = 1200
+
+interface SyncState {
+  isSyncing: boolean
+  progress: { processed: number; total: number } | null
+  error: string | null
+}
+
+const IDLE_SYNC_STATE: SyncState = { isSyncing: false, progress: null, error: null }
+
 /*
   Кэш достижений по всей библиотеке (см. Сервер/src/routes/steamAchievements.ts) —
-  читает уже готовые данные из БД, не дёргает Steam напрямую. Синхронизация
-  (syncAchievements) — отдельное явное действие по кнопке, может занимать
-  десятки секунд на большую библиотеку.
+  читает уже готовые данные из БД, не дёргает Steam напрямую.
+
+  Сама синхронизация идёт в фоне на сервере (может занимать десятки секунд —
+  минуты на большую библиотеку) — startSync только запускает её и сразу
+  возвращается. Прогресс дальше читается вручную, обычным циклом
+  await+setTimeout прямо внутри sync() (событие клика, не эффект) —
+  не через RTK Query pollingInterval: это потребовало бы либо
+  дублировать статус в setState внутри useEffect (запрещено
+  react-hooks/set-state-in-effect), либо решать интервал следующего
+  поллинга через ref, читаемый на рендере (запрещено react-hooks/refs).
+  Цикл внутри обработчика клика не задевает ни одно из этих правил —
+  все setState здесь стоят после await, то есть асинхронно, а не
+  синхронно во время эффекта/рендера.
 */
 export function useAchievementsLibrary() {
   const token = useAppSelector((state) => state.auth.token)
-  const { data, isLoading, isFetching, isError } = useGetSteamAchievementsCacheQuery(undefined, { skip: !token })
-  const [sync, syncState] = useSyncSteamAchievementsMutation()
+  const { data, isLoading, isFetching, isError, refetch } = useGetSteamAchievementsCacheQuery(undefined, { skip: !token })
+  const [startSync, startSyncState] = useStartSteamAchievementsSyncMutation()
+  const [checkSyncStatus] = useLazyGetSteamAchievementsSyncStatusQuery()
+
+  const [syncState, setSyncState] = useState<SyncState>(IDLE_SYNC_STATE)
+
+  async function sync() {
+    setSyncState({ isSyncing: true, progress: null, error: null })
+    try {
+      const started = await startSync().unwrap()
+      let lastTotal = started.total
+
+      while (true) {
+        const status = await checkSyncStatus().unwrap()
+        lastTotal = status.total || lastTotal
+
+        if (status.status === 'running') {
+          setSyncState({ isSyncing: true, progress: { processed: status.processed, total: lastTotal }, error: null })
+          await new Promise((resolve) => setTimeout(resolve, SYNC_POLL_MS))
+          continue
+        }
+        if (status.status === 'error') {
+          setSyncState({ isSyncing: false, progress: null, error: status.error ?? 'Не удалось синхронизировать' })
+          return
+        }
+        break
+      }
+
+      setSyncState(IDLE_SYNC_STATE)
+      refetch()
+    } catch (err) {
+      setSyncState({ isSyncing: false, progress: null, error: extractApiError(err, 'Не удалось синхронизировать') })
+    }
+  }
 
   return {
     games: data?.games ?? EMPTY_ACHIEVEMENT_GAMES,
@@ -214,8 +272,9 @@ export function useAchievementsLibrary() {
     isFetching,
     isError,
     sync,
-    isSyncing: syncState.isLoading,
+    isSyncing: syncState.isSyncing || startSyncState.isLoading,
     syncError: syncState.error,
+    syncProgress: syncState.progress,
   }
 }
 

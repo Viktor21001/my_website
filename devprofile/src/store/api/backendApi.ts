@@ -117,9 +117,14 @@ export const backendApi = createApi({
     /*
       Кэш достижений по всей Steam-библиотеке — читает уже готовые данные
       из БД (см. Сервер/src/routes/steamAchievements.ts), никаких запросов
-      к Steam при каждой загрузке страницы. syncSteamAchievements — сама
-      синхронизация, может занимать десятки секунд на большую библиотеку,
-      поэтому это отдельное действие по кнопке, а не что-то фоновое.
+      к Steam при каждой загрузке страницы.
+
+      startSteamAchievementsSync запускает синхронизацию в фоне на сервере
+      и отвечает сразу же (total игр, статус running) — сама синхронизация
+      может занимать десятки секунд-минуты на большую библиотеку, поэтому
+      её прогресс читается отдельным поллингом getSteamAchievementsSyncStatus
+      (см. useAchievementsLibrary в hooks/useSteam.ts), а не одним долгим
+      запросом, который держал бы вкладку "подвисшей".
     */
     getSteamAchievementsCache: builder.query<
       { games: SteamGameAchievementsCache[]; lastSyncedAt: string | null },
@@ -128,9 +133,14 @@ export const backendApi = createApi({
       query: () => '/steam-achievements',
       providesTags: ['SteamAchievements'],
     }),
-    syncSteamAchievements: builder.mutation<{ gamesSynced: number; gamesChecked: number }, void>({
+    startSteamAchievementsSync: builder.mutation<{ status: string; total: number }, void>({
       query: () => ({ url: '/steam-achievements/sync', method: 'POST' }),
-      invalidatesTags: ['SteamAchievements'],
+    }),
+    getSteamAchievementsSyncStatus: builder.query<
+      { status: 'idle' | 'running' | 'done' | 'error'; processed: number; total: number; gamesSynced: number; error?: string },
+      void
+    >({
+      query: () => '/steam-achievements/sync/status',
     }),
 
   }),
@@ -154,5 +164,6 @@ export const {
   useDeleteExerciseMutation,
   useGetLeaderboardQuery,
   useGetSteamAchievementsCacheQuery,
-  useSyncSteamAchievementsMutation,
+  useStartSteamAchievementsSyncMutation,
+  useLazyGetSteamAchievementsSyncStatusQuery,
 } = backendApi

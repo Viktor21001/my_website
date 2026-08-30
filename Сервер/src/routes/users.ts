@@ -61,6 +61,13 @@ router.patch(
     }
 
     const user = await prisma.user.update({ where: { id: req.userId! }, data })
+
+    // Ключ явно удалён (не просто заменён другим) — без него синхронизация
+    // достижений больше недоступна, старый кэш достижений тоже теряет смысл
+    if (steamApiKey === '') {
+      await prisma.steamGameAchievements.deleteMany({ where: { userId: req.userId! } })
+    }
+
     res.json(serializeUser(user))
   })
 )

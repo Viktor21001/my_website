@@ -7,9 +7,18 @@
   достижения — это 2-3 запроса к Steam Web API НА ИГРУ. Делать такое
   прямо из браузера при каждой загрузке страницы значит сотни
   параллельных запросов с публично видимым ключом — поэтому синк идёт
-  здесь, вручную (POST /sync), с личным ключом пользователя, а
-  результат складывается в БД (SteamGameAchievements). Клиент обычно
-  просто читает уже готовый кэш (GET /).
+  здесь, с личным ключом пользователя, а результат складывается в БД
+  (SteamGameAchievements). Клиент обычно просто читает уже готовый кэш
+  (GET /).
+
+  POST /sync раньше держал HTTP-соединение открытым на всё время синка
+  (десятки секунд — минуты на большую библиотеку) — вся вкладка выглядела
+  зависшей, а прогресса видно не было. Теперь синк идёт в фоне отдельной
+  функцией (без await в хендлере), сам запрос отвечает сразу же — total
+  игр и статус running, а прогресс (сколько уже обработано) читается
+  отдельным поллингом GET /sync/status. Прогресс — просто Map в памяти
+  процесса: это личный небольшой сервис на одном инстансе, отдельная
+  очередь задач/Redis тут явно лишняя.
 */
 
 import { Router } from 'express'
@@ -44,6 +53,17 @@ interface AchievementDetail {
   unlockTime: number | null
   globalPercent: number | null
 }
+
+interface SyncProgress {
+  status: 'idle' | 'running' | 'done' | 'error'
+  processed: number
+  total: number
+  gamesSynced: number
+  error?: string
+}
+
+// userId -> прогресс текущей/последней синхронизации
+const progressByUser = new Map<string, SyncProgress>()
 
 async function fetchJson(url: string): Promise<any> {
   const res = await fetch(url)
@@ -109,24 +129,68 @@ async function fetchGameAchievements(
   }
 }
 
-// Пул с ограниченной параллельностью — без лишней зависимости
-async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length)
+/*
+  Сама синхронизация — запускается без await из роута, пишет прогресс
+  в progressByUser по ходу дела. Каждая игра сохраняется в БД сразу по
+  готовности (не одним большим Promise.all в конце) — если пользователь
+  уйдёт со страницы или сервер перезапустится на середине, то что уже
+  успело обработаться, не потеряется.
+*/
+async function runSync(userId: string, steamId: string, apiKey: string, playedGames: SteamOwnedGame[]) {
+  const progress: SyncProgress = { status: 'running', processed: 0, total: playedGames.length, gamesSynced: 0 }
+  progressByUser.set(userId, progress)
+
   let next = 0
   async function worker() {
-    while (next < items.length) {
-      const i = next++
-      results[i] = await fn(items[i])
+    while (next < playedGames.length) {
+      const g = playedGames[next++]
+      try {
+        const result = await fetchGameAchievements(g.appid, steamId, apiKey)
+        if (result) {
+          await prisma.steamGameAchievements.upsert({
+            where: { userId_appId: { userId, appId: g.appid } },
+            create: {
+              userId,
+              appId: g.appid,
+              gameName: g.name,
+              achievements: result.achievements as unknown as Prisma.InputJsonValue,
+              achievedCount: result.achievedCount,
+              totalCount: result.totalCount,
+            },
+            update: {
+              gameName: g.name,
+              achievements: result.achievements as unknown as Prisma.InputJsonValue,
+              achievedCount: result.achievedCount,
+              totalCount: result.totalCount,
+              syncedAt: new Date(),
+            },
+          })
+          progress.gamesSynced++
+        }
+      } catch {
+        // одна неудачная/приватная игра не должна валить всю синхронизацию
+      }
+      progress.processed++
     }
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
-  return results
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, playedGames.length) }, worker))
+  progress.status = 'done'
 }
 
 router.post(
   '/sync',
   asyncHandler(async (req, res) => {
-    const user = await prisma.user.findUnique({ where: { id: req.userId! } })
+    const userId = req.userId!
+
+    // Синк уже идёт — не запускаем второй параллельно, просто отдаём текущий статус
+    const existing = progressByUser.get(userId)
+    if (existing?.status === 'running') {
+      res.json({ status: existing.status, total: existing.total })
+      return
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user?.steamId || !user?.steamApiKey) {
       throw new HttpError(400, 'Укажите Steam ID и Steam API ключ в настройках профиля')
     }
@@ -141,36 +205,24 @@ router.post(
     // Никогда не запущенные игры не могут иметь достижений — не тратим на них запросы
     const playedGames = ownedGames.filter((g) => g.playtime_forever > 0)
 
-    const results = await mapWithConcurrency(playedGames, CONCURRENCY, async (g) => {
-      const result = await fetchGameAchievements(g.appid, user.steamId!, user.steamApiKey!)
-      return result ? { game: g, ...result } : null
+    // Без await — синхронизация идёт в фоне, ответ отдаём сразу же
+    runSync(userId, user.steamId, user.steamApiKey, playedGames).catch((err) => {
+      progressByUser.set(userId, {
+        status: 'error', processed: 0, total: playedGames.length, gamesSynced: 0,
+        error: 'Синхронизация прервалась — попробуйте ещё раз',
+      })
+      console.error('Steam achievements sync failed', err)
     })
-    const withAchievements = results.filter((r): r is NonNullable<typeof r> => r !== null)
 
-    await Promise.all(
-      withAchievements.map((r) =>
-        prisma.steamGameAchievements.upsert({
-          where: { userId_appId: { userId: req.userId!, appId: r.game.appid } },
-          create: {
-            userId: req.userId!,
-            appId: r.game.appid,
-            gameName: r.game.name,
-            achievements: r.achievements as unknown as Prisma.InputJsonValue,
-            achievedCount: r.achievedCount,
-            totalCount: r.totalCount,
-          },
-          update: {
-            gameName: r.game.name,
-            achievements: r.achievements as unknown as Prisma.InputJsonValue,
-            achievedCount: r.achievedCount,
-            totalCount: r.totalCount,
-            syncedAt: new Date(),
-          },
-        })
-      )
-    )
+    res.json({ status: 'running', total: playedGames.length })
+  })
+)
 
-    res.json({ gamesSynced: withAchievements.length, gamesChecked: playedGames.length })
+router.get(
+  '/sync/status',
+  asyncHandler(async (req, res) => {
+    const progress = progressByUser.get(req.userId!) ?? { status: 'idle', processed: 0, total: 0, gamesSynced: 0 }
+    res.json(progress)
   })
 )
 

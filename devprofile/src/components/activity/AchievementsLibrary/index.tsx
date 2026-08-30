@@ -15,7 +15,7 @@
   - есть кэш — сетка квадратиков, скроллится после нескольких строк
 */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { useAppSelector } from '../../../hooks/redux'
@@ -24,7 +24,6 @@ import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
 import { tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { HelpTooltipIcon } from '../../shared/HelpTooltipIcon'
 import { STEAM_API_KEY_HELP_SECTIONS } from '../../../config/steamHelp'
-import { extractApiError } from '../../../utils/apiError'
 import type { SteamAchievementDetail } from '../../../types/steam'
 
 const TILE = 40
@@ -33,6 +32,20 @@ const PADDING = 12
 const VISIBLE_ROWS = 4
 const SCROLL_AREA_HEIGHT = VISIBLE_ROWS * TILE + (VISIBLE_ROWS - 1) * GAP + PADDING * 2
 const TOOLTIP_WIDTH = 260
+
+/*
+  Каждый тайл — это отдельный компонент с собственным useTooltipPosition
+  (ref + state под портал-тултип). На большой прожитой библиотеке
+  суммарно полученных ачивок по всем играм легко набирается несколько
+  тысяч — смонтировать их все разом ровно в момент переключения на
+  вкладку Games (до этого вкладка не рендерилась вообще) было тем самым
+  "зависанием": один синхронный React-коммит на тысячи компонентов с
+  hover-логикой блокирует основной поток на секунды. Поэтому рендерим
+  только первые INITIAL_VISIBLE, а остальные — по кнопке «Показать ещё»
+  батчами по LOAD_MORE_STEP, а не сразу все.
+*/
+const INITIAL_VISIBLE = 200
+const LOAD_MORE_STEP = 200
 
 interface FlatAchievement extends SteamAchievementDetail {
   gameName: string
@@ -47,7 +60,17 @@ function formatUnlockDateTime(unixSeconds: number): string {
 
 export function AchievementsLibrary() {
   const user = useAppSelector((state) => state.auth.user)
-  const { games, lastSyncedAt, isLoading, isError, sync, isSyncing, syncError } = useAchievementsLibrary()
+  const { games, lastSyncedAt, isLoading, isError, sync, isSyncing, syncError, syncProgress } = useAchievementsLibrary()
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE)
+
+  // До ранних return'ов ниже — хуки должны вызываться безусловно на каждом рендере
+  const allAchievements: FlatAchievement[] = useMemo(
+    () =>
+      games
+        .flatMap((g) => g.achievements.filter((a) => a.unlocked).map((a) => ({ ...a, gameName: g.gameName })))
+        .sort((a, b) => (b.unlockTime ?? 0) - (a.unlockTime ?? 0)),
+    [games]
+  )
 
   if (!user?.hasSteamApiKey) {
     return (
@@ -86,13 +109,9 @@ export function AchievementsLibrary() {
     )
   }
 
-  const allAchievements: FlatAchievement[] = games
-    .flatMap((g) => g.achievements.filter((a) => a.unlocked).map((a) => ({ ...a, gameName: g.gameName })))
-    .sort((a, b) => (b.unlockTime ?? 0) - (a.unlockTime ?? 0))
-
   async function handleSync() {
     try {
-      await sync().unwrap()
+      await sync()
     } catch {
       // ошибка уже отражена через syncError ниже
     }
@@ -109,7 +128,15 @@ export function AchievementsLibrary() {
           <button onClick={handleSync} disabled={isSyncing} className="dp-btn-primary text-xs">
             {isSyncing ? 'Синхронизация…' : '🔄 Синхронизировать достижения'}
           </button>
-          {syncError && <div className="dp-error">{extractApiError(syncError, 'Не удалось синхронизировать')}</div>}
+          {isSyncing && syncProgress && (
+            <div className="w-full flex flex-col items-center gap-1 mt-1">
+              <SyncProgressBar processed={syncProgress.processed} total={syncProgress.total} />
+              <span className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>
+                {syncProgress.processed} из {syncProgress.total} игр
+              </span>
+            </div>
+          )}
+          {syncError && <div className="dp-error">{syncError}</div>}
         </div>
       </div>
     )
@@ -136,29 +163,66 @@ export function AchievementsLibrary() {
         </button>
       </div>
 
-      {syncError && <div className="dp-error px-3 pt-2">{extractApiError(syncError, 'Не удалось синхронизировать')}</div>}
+      {isSyncing && syncProgress && (
+        <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: '1px solid var(--dp-border)' }}>
+          <SyncProgressBar processed={syncProgress.processed} total={syncProgress.total} />
+          <span className="text-xs font-mono shrink-0" style={{ color: 'var(--dp-text-muted)' }}>
+            {syncProgress.processed}/{syncProgress.total}
+          </span>
+        </div>
+      )}
+
+      {syncError && <div className="dp-error px-3 pt-2">{syncError}</div>}
 
       {allAchievements.length === 0 ? (
         <div className="p-4 text-xs text-center" style={{ color: 'var(--dp-text-muted)' }}>
           Пока нет ни одного полученного достижения
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(auto-fill, ${TILE}px)`,
-            justifyContent: 'center',
-            gap: GAP,
-            padding: PADDING,
-            maxHeight: SCROLL_AREA_HEIGHT,
-            overflowY: 'auto',
-          }}
-        >
-          {allAchievements.map((a, i) => (
-            <AchievementTile key={`${a.gameName}-${a.apiname}-${i}`} achievement={a} />
-          ))}
-        </div>
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(auto-fill, ${TILE}px)`,
+              justifyContent: 'center',
+              gap: GAP,
+              padding: PADDING,
+              maxHeight: SCROLL_AREA_HEIGHT,
+              overflowY: 'auto',
+            }}
+          >
+            {allAchievements.slice(0, visibleCount).map((a, i) => (
+              <AchievementTile key={`${a.gameName}-${a.apiname}-${i}`} achievement={a} />
+            ))}
+          </div>
+          {visibleCount < allAchievements.length && (
+            <button
+              onClick={() => setVisibleCount((n) => n + LOAD_MORE_STEP)}
+              className="w-full text-xs py-2"
+              style={{ background: 'none', border: 'none', borderTop: '1px solid var(--dp-border)', cursor: 'pointer', color: 'var(--dp-text-secondary)' }}
+            >
+              Показать ещё ({allAchievements.length - visibleCount})
+            </button>
+          )}
+        </>
       )}
+    </div>
+  )
+}
+
+function SyncProgressBar({ processed, total }: { processed: number; total: number }) {
+  const percent = total > 0 ? Math.round((processed / total) * 100) : 0
+  return (
+    <div className="flex-1 flex items-center gap-2">
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--dp-border)' }}>
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: 'var(--dp-accent)' }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        />
+      </div>
+      <span className="text-xs font-mono shrink-0" style={{ color: 'var(--dp-text-code)' }}>{percent}%</span>
     </div>
   )
 }
