@@ -4,7 +4,7 @@ import { GithubProjectCard } from '../GithubProjectCard'
 import { ActivityFeed } from '../ActivityFeed'
 import { GithubContributions } from '../../stats/GithubContributions'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
-import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
+import { staggerItemVariants, fadeVariants } from '../../../hooks/useAnimatedMount'
 import { useRecentRepos } from '../../../hooks/useGithub'
 
 type Tab = 'projects' | 'activity'
@@ -67,13 +67,17 @@ export function RecentActivity() {
         </div>
       </div>
 
-      {/* Контент вкладок */}
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18 }}
-      >
+      {/*
+        Контент вкладок — вместо своих initial/animate объектов используем
+        variants (та же схема, что и у остальных motion.div в этом дереве):
+        собственный initial/animate тван на key={activeTab}-ремаунте иногда
+        застревал в initial (opacity:0) до наведения мышью — StrictMode
+        в деве дважды монтирует эффекты, и это ломало именно самостоятельно
+        управляемые анимации. Через variants состояние "visible" читается
+        из контекста родителя (PageWrapper), а не из своего же эффекта —
+        так надёжнее.
+      */}
+      <motion.div key={activeTab} variants={fadeVariants}>
         {activeTab === 'projects' && (
           <>
             {reposLoading && <SkeletonCard />}

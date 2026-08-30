@@ -18,7 +18,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
+import { staggerItemVariants, fadeVariants } from '../../../hooks/useAnimatedMount'
 import { useAppSelector } from '../../../hooks/redux'
 import {
   useExercises,
@@ -92,7 +92,13 @@ export function ExerciseLibrary() {
         </div>
       </div>
 
-      <motion.div key={tab} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+      {/*
+        variants вместо своих initial/animate — тван на key={tab}-ремаунте
+        застревал в initial (opacity:0) до наведения мышью (см. такой же
+        фикс в RecentActivity/WorkoutLog). Через variants состояние
+        читается из контекста родителя, а не из своего же эффекта.
+      */}
+      <motion.div key={tab} variants={fadeVariants}>
         {tab === 'system' && (
           <div className="p-3">
             <ExerciseGroupList exercises={systemExercises} emptyMessage="Системная библиотека пуста" />

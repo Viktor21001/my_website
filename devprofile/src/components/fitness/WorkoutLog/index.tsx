@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
+import { staggerItemVariants, fadeVariants } from '../../../hooks/useAnimatedMount'
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { extractApiError } from '../../../utils/apiError'
 import { useWorkouts, useInBodyResults, useExercises, useMeasurements, useAddWorkoutMutation } from '../../../hooks/useFitnessData'
@@ -155,13 +155,13 @@ export function WorkoutLog() {
         </div>
       </div>
 
-      {/* Контент вкладок */}
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18 }}
-      >
+      {/*
+        Контент вкладок — variants вместо своих initial/animate: тван на
+        key={activeTab}-ремаунте застревал в initial (opacity:0) до наведения
+        мышью (см. такой же фикс в RecentActivity). Через variants состояние
+        читается из контекста родителя, а не из своего же эффекта.
+      */}
+      <motion.div key={activeTab} variants={fadeVariants}>
         {activeTab === 'workouts' && (
           <div className="flex flex-col">
             <AddWorkoutForm onConfirm={setPlayer} />
