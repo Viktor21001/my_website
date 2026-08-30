@@ -27,6 +27,11 @@ export function serializeUser(user: User) {
     favoriteSteamAppIds: user.favoriteSteamAppIds,
     panelLayout: user.panelLayout ?? null,
     defaultSection: user.defaultSection ?? null,
+    // Клиенту нужна роль только для того, чтобы показать кнопку
+    // «Админ-панель» — сам доступ к admin-эндпоинтам сервер перепроверяет
+    // заново на каждый запрос (см. middleware/authenticate.ts), а не
+    // доверяет этому полю из уже выданного ответа
+    role: user.role,
     background: {
       type: user.backgroundType,
       url: user.backgroundUrl,

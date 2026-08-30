@@ -22,6 +22,7 @@ import type {
   Workout,
 } from '../../types/fitness'
 import type { SteamGameAchievementsCache } from '../../types/steam'
+import type { AdminUsersPage, AuditLogPage, BanPayload } from '../../types/admin'
 
 /*
   baseUrl — свой Express-сервер (папка Сервер\), а не внешний API,
@@ -40,7 +41,7 @@ export const backendApi = createApi({
     },
   }),
 
-  tagTypes: ['Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard', 'SteamAchievements'],
+  tagTypes: ['Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard', 'SteamAchievements', 'AdminUsers'],
 
   endpoints: (builder) => ({
 
@@ -143,6 +144,53 @@ export const backendApi = createApi({
       query: () => '/steam-achievements/sync/status',
     }),
 
+    /*
+      Админ-панель — все запросы к /admin/* сервер перепроверяет по роли,
+      прочитанной свежо из БД (см. Сервер/src/middleware/authenticate.ts),
+      клиентские проверки роли — только чтобы не показывать лишние кнопки.
+    */
+    getAdminUsers: builder.query<AdminUsersPage, { q?: string; cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.q) search.set('q', params.q)
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/admin/users${qs ? `?${qs}` : ''}`
+      },
+      providesTags: ['AdminUsers'],
+    }),
+    banUser: builder.mutation<{ ok: boolean }, BanPayload>({
+      query: ({ id, ...body }) => ({ url: `/admin/users/${id}/ban`, method: 'POST', body }),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    unbanUser: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/admin/users/${id}/unban`, method: 'POST' }),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    resetUserPassword: builder.mutation<{ password: string }, string>({
+      query: (id) => ({ url: `/admin/users/${id}/reset-password`, method: 'POST' }),
+    }),
+    deleteAdminUser: builder.mutation<void, string>({
+      query: (id) => ({ url: `/admin/users/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    promoteUser: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/admin/users/${id}/promote`, method: 'POST' }),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    demoteUser: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/admin/users/${id}/demote`, method: 'POST' }),
+      invalidatesTags: ['AdminUsers'],
+    }),
+    getAuditLog: builder.query<AuditLogPage, { cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/admin/audit-log${qs ? `?${qs}` : ''}`
+      },
+    }),
+
   }),
 })
 
@@ -166,4 +214,14 @@ export const {
   useGetSteamAchievementsCacheQuery,
   useStartSteamAchievementsSyncMutation,
   useLazyGetSteamAchievementsSyncStatusQuery,
+  useGetAdminUsersQuery,
+  useLazyGetAdminUsersQuery,
+  useBanUserMutation,
+  useUnbanUserMutation,
+  useResetUserPasswordMutation,
+  useDeleteAdminUserMutation,
+  usePromoteUserMutation,
+  useDemoteUserMutation,
+  useGetAuditLogQuery,
+  useLazyGetAuditLogQuery,
 } = backendApi

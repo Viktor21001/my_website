@@ -7,6 +7,7 @@ import { asyncHandler } from '../lib/asyncHandler'
 import { HttpError } from '../middleware/errorHandler'
 import { toDbAgeGroup } from '../lib/ageGroup'
 import { serializeUser } from '../lib/serializeUser'
+import { isCurrentlyBanned, formatBanMessage } from '../lib/ban'
 
 const router = Router()
 
@@ -60,6 +61,8 @@ router.post(
 
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) throw new HttpError(401, 'Неверный логин или пароль')
+
+    if (isCurrentlyBanned(user)) throw new HttpError(403, formatBanMessage(user))
 
     const token = signToken(user.id)
     res.json({ token, user: serializeUser(user) })

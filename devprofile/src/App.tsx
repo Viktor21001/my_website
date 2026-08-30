@@ -20,7 +20,7 @@ import { useSyncAuthUser } from './hooks/useSyncAuthUser'
 
 import { useAppSelector, useAppDispatch } from './hooks/redux'
 import { logout } from './store/slices/authSlice'
-import { toggleSettings } from './store/slices/uiSlice'
+import { toggleSettings, toggleAdminPanel } from './store/slices/uiSlice'
 
 import { Background }       from './components/layout/Background'
 import { AppBoard }         from './components/layout/AppBoard'
@@ -30,6 +30,7 @@ import { StatusBar }        from './components/profile/StatusBar'
 import { FavoriteGamesPicker } from './components/activity/FavoriteGamesPicker'
 import { AuthGate }         from './components/auth/AuthGate'
 import { SettingsPanel }    from './components/settings/SettingsPanel'
+import { AdminPanel }       from './components/admin/AdminPanel'
 
 function App() {
   /*
@@ -47,6 +48,7 @@ function App() {
   useSyncAuthUser()
 
   const token = useAppSelector((state) => state.auth.token)
+  const role = useAppSelector((state) => state.auth.user?.role)
   const dispatch = useAppDispatch()
 
   return (
@@ -54,9 +56,10 @@ function App() {
       {/* Слой 1: Фон — position fixed, за всем контентом */}
       <Background />
 
-      {/* Слой 2: Настройки профиля / выбор любимых игр — выезжают снизу поверх всего */}
+      {/* Слой 2: Настройки профиля / выбор любимых игр / админ-панель — выезжают снизу поверх всего */}
       <SettingsPanel />
       <FavoriteGamesPicker />
+      <AdminPanel />
 
       {/* Слой 3: без аккаунта — экран входа/регистрации вместо профиля */}
       {!token && <AuthGate />}
@@ -70,6 +73,11 @@ function App() {
             <div className="flex items-center justify-between">
               <SectionTabs />
               <div className="flex items-center gap-2 mr-2">
+                {(role === 'ADMIN' || role === 'CREATOR') && (
+                  <button onClick={() => dispatch(toggleAdminPanel())} className="dp-btn-ghost text-xs">
+                    🛡 Админ-панель
+                  </button>
+                )}
                 <button onClick={() => dispatch(toggleSettings())} className="dp-btn-ghost text-xs">
                   ⚙ Настройки
                 </button>

@@ -1,6 +1,8 @@
 import type { AgeGroup } from './fitness'
 import type { BackgroundConfig, PanelLayoutPrefs } from './profile'
 
+export type Role = 'USER' | 'ADMIN' | 'CREATOR'
+
 export interface AuthUser {
   id: string
   email: string
@@ -24,6 +26,9 @@ export interface AuthUser {
   // Вкладка, открываемая по умолчанию при входе — null у аккаунтов,
   // которые никогда это не настраивали (тогда клиент берёт Dev)
   defaultSection: string | null
+  // Только для показа кнопки «Админ-панель» — сам доступ к admin-эндпоинтам
+  // сервер перепроверяет заново на каждый запрос, этому полю не доверяет
+  role: Role
 }
 
 // Любое подмножество полей профиля, которые можно поменять в Настройках

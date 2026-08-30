@@ -37,12 +37,14 @@ function loadInitialSection(): ActiveSection {
 interface UiState {
   isSettingsOpen: boolean
   isFavoriteGamesPickerOpen: boolean
+  isAdminPanelOpen: boolean
   activeSection: ActiveSection
 }
 
 const initialState: UiState = {
   isSettingsOpen: false,
   isFavoriteGamesPickerOpen: false,
+  isAdminPanelOpen: false,
   activeSection: loadInitialSection(),
 }
 
@@ -62,6 +64,12 @@ const uiSlice = createSlice({
     setFavoriteGamesPickerOpen(state, action: PayloadAction<boolean>) {
       state.isFavoriteGamesPickerOpen = action.payload
     },
+    toggleAdminPanel(state) {
+      state.isAdminPanelOpen = !state.isAdminPanelOpen
+    },
+    setAdminPanelOpen(state, action: PayloadAction<boolean>) {
+      state.isAdminPanelOpen = action.payload
+    },
     setActiveSection(state, action: PayloadAction<ActiveSection>) {
       // Во время драга наведение на уже активную вкладку не должно
       // диспатчить лишний раз на каждый кадр — см. AppBoard.onDragOver
@@ -76,6 +84,8 @@ export const {
   setSettingsOpen,
   toggleFavoriteGamesPicker,
   setFavoriteGamesPickerOpen,
+  toggleAdminPanel,
+  setAdminPanelOpen,
   setActiveSection,
 } = uiSlice.actions
 export default uiSlice.reducer

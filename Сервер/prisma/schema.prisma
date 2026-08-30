@@ -46,6 +46,17 @@ enum ExperienceLevel {
   advanced
 }
 
+// USER (по умолчанию) -> ADMIN -> CREATOR. Ровно один CREATOR — назначается
+// data-миграцией по email (см. migration.sql), защищён на уровне БД partial
+// unique индексом (User_singleton_creator) и на уровне приложения — target
+// с ролью CREATOR отклоняется первой же проверкой в каждом хендлере
+// Сервер/src/routes/admin.ts, независимо от роли того, кто запрашивает
+enum Role {
+  USER
+  ADMIN
+  CREATOR
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -93,11 +104,50 @@ model User {
   // (тогда клиент падает на прежнее поведение — Dev)
   defaultSection String?
 
+  role Role @default(USER)
+
+  // Бан: bannedAt = null -> не забанен. bannedUntil = null при заданном
+  // bannedAt -> бан постоянный, иначе сравнивается с now() лениво при
+  // каждой проверке (см. lib/ban.ts) — отдельного крона на снятие
+  // просроченного бана нет, поле просто перестаёт считаться активным
+  bannedAt       DateTime?
+  bannedUntil    DateTime?
+  banReason      String?
+  bannedByUserId String?
+  bannedBy       User?      @relation("BannedBy", fields: [bannedByUserId], references: [id], onDelete: SetNull)
+  bannedUsers    User[]     @relation("BannedBy")
+
   measurements      BodyMeasurement[]
   inbodyResults     InBodyResult[]
   workouts          Workout[]
   customExercises   Exercise[]              @relation("ExerciseCreator")
   steamAchievements SteamGameAchievements[]
+  auditActions      AdminAuditLog[]         @relation("AuditActor")
+}
+
+// Журнал действий администраторов — только на запись, эндпоинта на
+// изменение/удаление записей нет и не будет. actorUsername/targetUsername —
+// снэпшот на момент действия, чтобы запись оставалась читаемой, даже если
+// аккаунт-актёр или аккаунт-цель потом переименован/удалён. actorId — с FK
+// (onDelete: SetNull), обнуляется автоматически при удалении актёра.
+// targetId — БЕЗ FK намеренно: цель действия к моменту записи лога иногда
+// уже удалена (см. DELETE_USER в routes/admin.ts — лог пишется ПОСЛЕ
+// успешного удаления, чтобы не логировать неудавшиеся попытки), FK на
+// несуществующую строку не дал бы такую запись вставить
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  actor          User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorUsername  String
+  targetId       String?
+  targetUsername String?
+  // BAN | UNBAN | DELETE_USER | RESET_PASSWORD | PROMOTE_ADMIN | DEMOTE_ADMIN
+  action  String
+  // { days, reason } для BAN; { previousRole, newRole } для PROMOTE/DEMOTE и т.п.
+  details Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model BodyMeasurement {
