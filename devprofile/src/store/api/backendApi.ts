@@ -18,6 +18,7 @@ import type {
   NewExercise,
   NewInBodyResult,
   NewWorkout,
+  UpdateExercisePayload,
   Workout,
 } from '../../types/fitness'
 
@@ -98,6 +99,14 @@ export const backendApi = createApi({
       query: (body) => ({ url: '/exercises', method: 'POST', body }),
       invalidatesTags: ['Exercises'],
     }),
+    updateExercise: builder.mutation<Exercise, { id: string } & UpdateExercisePayload>({
+      query: ({ id, ...body }) => ({ url: `/exercises/${id}`, method: 'PATCH', body }),
+      invalidatesTags: ['Exercises'],
+    }),
+    deleteExercise: builder.mutation<void, string>({
+      query: (id) => ({ url: `/exercises/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Exercises'],
+    }),
 
     getLeaderboard: builder.query<LeaderboardEntry[], AgeGroup>({
       query: (ageGroup) => `/leaderboard?ageGroup=${ageGroup}`,
@@ -121,5 +130,7 @@ export const {
   useAddWorkoutMutation,
   useGetExercisesQuery,
   useAddExerciseMutation,
+  useUpdateExerciseMutation,
+  useDeleteExerciseMutation,
   useGetLeaderboardQuery,
 } = backendApi

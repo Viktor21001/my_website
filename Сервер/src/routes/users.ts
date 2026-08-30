@@ -18,7 +18,7 @@ interface BackgroundInput {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, timezone, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -41,6 +41,7 @@ router.patch(
     if (bio !== undefined) data.bio = bio || null
     if (location !== undefined) data.location = location || null
     if (timezone !== undefined) data.timezone = timezone || null
+    if (exerciseLibraryName !== undefined) data.exerciseLibraryName = exerciseLibraryName || null
     if (githubUsername !== undefined) data.githubUsername = githubUsername || null
     if (steamId !== undefined) data.steamId = steamId || null
     // Лимит в 7 проверяем и на сервере — не доверяем только клиентской валидации

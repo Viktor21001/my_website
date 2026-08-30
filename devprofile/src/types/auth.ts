@@ -10,6 +10,7 @@ export interface AuthUser {
   bio: string | null
   location: string | null
   timezone: string | null
+  exerciseLibraryName: string | null
   ageGroup: AgeGroup
   createdAt: string
   githubUsername: string | null
@@ -25,6 +26,7 @@ export interface UpdateProfilePayload {
   bio?: string | null
   location?: string | null
   timezone?: string | null
+  exerciseLibraryName?: string | null
   githubUsername?: string | null
   steamId?: string | null
   favoriteSteamAppIds?: number[]

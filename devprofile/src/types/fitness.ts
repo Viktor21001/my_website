@@ -64,6 +64,11 @@ export interface Exercise {
   // isTimeBased    — WorkoutSet.reps хранит минуты, а не количество повторов
   bodyweightOnly: boolean
   isTimeBased: boolean
+  // null — системное упражнение (сид), иначе — автор из своей библиотеки;
+  // редактировать/удалять может только он, остальным доступно на чтение
+  // и копирование (вкладка «Сообщество» — см. ExerciseLibrary)
+  createdByUserId: string | null
+  createdByUsername: string | null
 }
 
 // Пользователь дополняет общую библиотеку — compound/minLevel не задаются
@@ -76,6 +81,9 @@ export interface NewExercise {
   bodyweightOnly: boolean
   isTimeBased: boolean
 }
+
+// Любое подмножество полей своего упражнения — для редактирования в «Моей библиотеке»
+export type UpdateExercisePayload = Partial<NewExercise>
 
 // Конструктор тренировок (WorkoutBuilder) — цель и место тренировки
 export type WorkoutGoal = 'weight_loss' | 'lean_toning' | 'muscle_gain' | 'strength'

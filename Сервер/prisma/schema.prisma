@@ -70,9 +70,14 @@ model User {
   // Выбранные вручную любимые игры Steam (appId), до 7, порядок = порядок выбора
   favoriteSteamAppIds Int[] @default([])
 
-  measurements  BodyMeasurement[]
-  inbodyResults InBodyResult[]
-  workouts      Workout[]
+  // Название вкладки «своя библиотека» в списке упражнений — если не задано,
+  // клиент показывает дефолтное «Моя библиотека»
+  exerciseLibraryName String?
+
+  measurements    BodyMeasurement[]
+  inbodyResults   InBodyResult[]
+  workouts        Workout[]
+  customExercises Exercise[]        @relation("ExerciseCreator")
 }
 
 model BodyMeasurement {
@@ -112,7 +117,11 @@ model InBodyResult {
   @@index([userId])
 }
 
-// Общий каталог упражнений — один на всех, не привязан к User
+// Общий каталог упражнений: системные (createdByUserId = null, никто не может
+// менять/удалять) + пользовательские (своя библиотека создателя, видны всем
+// в «Сообществе», но редактировать/удалять может только создатель). Для
+// конструктора тренировок (workoutGenerator.ts) и ручного добавления
+// подходов используются вообще все строки разом, вне зависимости от автора.
 model Exercise {
   id          String      @id @default(cuid())
   name        String
@@ -134,7 +143,13 @@ model Exercise {
   bodyweightOnly Boolean @default(false)
   isTimeBased    Boolean @default(false)
 
+  // null — системное упражнение из сида, иначе — автор из своей библиотеки
+  createdByUserId String?
+  createdBy       User?   @relation("ExerciseCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
   sets WorkoutSet[]
+
+  @@index([createdByUserId])
 }
 
 model Workout {
