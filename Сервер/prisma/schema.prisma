@@ -80,6 +80,13 @@ model User {
   // клиент показывает дефолтное «Моя библиотека»
   exerciseLibraryName String?
 
+  // Порядок панелей по вкладкам (Dev/Fitness/Games), настроенный перетаскиванием
+  // за ручку в шапке панели — null, если пользователь ничего не перетаскивал
+  // (тогда клиент берёт порядок по умолчанию из PANEL_REGISTRY). Json, а не
+  // плоские колонки — набор id переменной длины на вкладку, как achievements
+  // в SteamGameAchievements
+  panelLayout Json?
+
   measurements      BodyMeasurement[]
   inbodyResults     InBodyResult[]
   workouts          Workout[]

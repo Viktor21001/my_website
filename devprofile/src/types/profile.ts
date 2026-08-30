@@ -1,4 +1,18 @@
+import type { ActiveSection } from '../store/slices/uiSlice'
+
 export type UserStatus = 'online' | 'in-game' | 'coding' | 'offline'
+
+// Порядок id панелей внутри одной колонки одной вкладки — настраивается
+// перетаскиванием за ручку в шапке панели (см. PanelBoard)
+export interface PanelColumnLayout {
+  left: string[]
+  right: string[]
+}
+
+// По вкладке — необязательно, вкладку в которой пользователь ничего не
+// перетаскивал просто нет как ключа, тогда клиент берёт порядок по
+// умолчанию из PANEL_REGISTRY (см. config/panelRegistry.tsx)
+export type PanelLayoutPrefs = Partial<Record<ActiveSection, PanelColumnLayout>>
 
 export type BadgeId =
   | 'founder'      // 👑 создатель сайта — только у тебя

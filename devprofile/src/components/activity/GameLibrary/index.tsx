@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useOwnedGames, formatPlaytime } from '../../../hooks/useSteam'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 import type { SteamGame } from '../../../types/steam'
 
 const POSTER_WIDTH = 100 // при ширине панели ~718px влезает ровно 6 в строку
@@ -30,7 +31,7 @@ export function GameLibrary() {
   if (isError) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Библиотека игр</div>
+        <PanelHeader title="Библиотека игр" />
         <ErrorCard message="Проверь настройки приватности Steam" />
       </div>
     )
@@ -38,10 +39,10 @@ export function GameLibrary() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">
+      <PanelHeader title={<>
         Библиотека игр{' '}
         <span style={{ color: 'var(--dp-text-muted)' }}>{games.length}</span>
-      </div>
+      </>} />
 
       {games.length === 0 ? (
         <EmptyCard message="Нет данных — проверь настройки приватности Steam" />

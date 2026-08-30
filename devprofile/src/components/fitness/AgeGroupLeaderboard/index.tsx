@@ -5,6 +5,7 @@ import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { AGE_GROUPS, AGE_GROUP_LABELS } from '../../../config/fitnessConstants'
 import { useLeaderboard } from '../../../hooks/useFitnessData'
 import { EmptyCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 import type { AgeGroup } from '../../../types/fitness'
 
 export function AgeGroupLeaderboard() {
@@ -16,7 +17,7 @@ export function AgeGroupLeaderboard() {
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
-      <div className="dp-section-title">Рейтинг по возрасту</div>
+      <PanelHeader title="Рейтинг по возрасту" />
 
       {/* Переключатель возрастных групп */}
       <div className="flex flex-wrap gap-1.5 p-3" style={{ borderBottom: '1px solid var(--dp-border)' }}>

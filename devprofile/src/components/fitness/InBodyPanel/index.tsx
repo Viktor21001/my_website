@@ -6,6 +6,7 @@
 import { sortByDateAsc } from '../../../utils/fitnessCalc'
 import { EmptyCard } from '../../shared/Card'
 import { useInBodyResults } from '../../../hooks/useFitnessData'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 export function InBodyPanel() {
   const { inbodyResults } = useInBodyResults()
@@ -13,7 +14,7 @@ export function InBodyPanel() {
   if (inbodyResults.length === 0) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">InBody</div>
+        <PanelHeader title="InBody" />
         <EmptyCard message="Сканов пока нет" />
       </div>
     )
@@ -26,7 +27,7 @@ export function InBodyPanel() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">InBody · последний скан</div>
+      <PanelHeader title="InBody · последний скан" />
 
       <div className="p-3 flex flex-col gap-3">
         <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>

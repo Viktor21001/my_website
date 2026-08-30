@@ -11,6 +11,7 @@ import { useFavoriteGames, formatPlaytime } from '../../../hooks/useSteam'
 import { useAppDispatch } from '../../../hooks/redux'
 import { toggleFavoriteGamesPicker } from '../../../store/slices/uiSlice'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 export function FavoriteGames() {
   const dispatch = useAppDispatch()
@@ -20,7 +21,7 @@ export function FavoriteGames() {
   if (isError) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Любимые игры</div>
+        <PanelHeader title="Любимые игры" />
         <ErrorCard message="Проверь Steam ID и настройки приватности" />
       </div>
     )
@@ -28,22 +29,19 @@ export function FavoriteGames() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div
-        className="flex items-center justify-between"
-        style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--dp-border)' }}
-      >
-        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
-          Любимые игры
-        </span>
-        <button
-          onClick={() => dispatch(toggleFavoriteGamesPicker())}
-          title="Выбрать любимые игры"
-          className="mr-3"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dp-text-secondary)', fontSize: 13 }}
-        >
-          👁
-        </button>
-      </div>
+      <PanelHeader
+        title="Любимые игры"
+        right={
+          <button
+            onClick={() => dispatch(toggleFavoriteGamesPicker())}
+            title="Выбрать любимые игры"
+            className="mr-3"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dp-text-secondary)', fontSize: 13 }}
+          >
+            👁
+          </button>
+        }
+      />
 
       {games.length === 0 ? (
         <EmptyCard message="Нет данных — проверь настройки приватности Steam" />

@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 type Status = 'idle' | 'running' | 'paused'
 
@@ -115,7 +116,7 @@ export function Stopwatch() {
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
-      <div className="dp-section-title">Секундомер</div>
+      <PanelHeader title="Секундомер" />
 
       <div className="p-4 flex flex-col items-center gap-4">
         <svg viewBox="0 0 200 200" width={180} height={180}>

@@ -23,31 +23,13 @@ import { logout } from './store/slices/authSlice'
 import { toggleSettings } from './store/slices/uiSlice'
 
 import { Background }       from './components/layout/Background'
-import { PageWrapper }      from './components/layout/PageWrapper'
+import { PanelBoard }       from './components/layout/PanelBoard'
 import { SectionTabs }      from './components/layout/SectionTabs'
 import { ProfileHeader }    from './components/profile/ProfileHeader'
 import { StatusBar }        from './components/profile/StatusBar'
-import { BadgesRow }        from './components/profile/BadgesRow'
-import { RecentActivity }   from './components/activity/RecentActivity'
-import { GameLibrary }      from './components/activity/GameLibrary'
-import { FavoriteGames }    from './components/activity/FavoriteGames'
-import { AchievementsLibrary } from './components/activity/AchievementsLibrary'
 import { FavoriteGamesPicker } from './components/activity/FavoriteGamesPicker'
-import { GithubStats }      from './components/stats/GithubStats'
-import { SteamStats }       from './components/stats/SteamStats'
-import { SteamAchievements } from './components/stats/SteamAchievements'
-import { ComingSoon }       from './components/shared/ComingSoon'
 import { AuthGate }         from './components/auth/AuthGate'
 import { SettingsPanel }    from './components/settings/SettingsPanel'
-import { DEV_BADGE_IDS, GAME_BADGE_IDS } from './config/badges'
-
-import { FitnessStatsStrip }    from './components/fitness/FitnessStatsStrip'
-import { WorkoutLog }           from './components/fitness/WorkoutLog'
-import { AgeGroupLeaderboard }  from './components/fitness/AgeGroupLeaderboard'
-import { ExerciseLibrary }      from './components/fitness/ExerciseLibrary'
-import { FitnessBadgesRow }     from './components/fitness/FitnessBadgesRow'
-import { Stopwatch }            from './components/fitness/Stopwatch'
-import { InBodyPanel }          from './components/fitness/InBodyPanel'
 
 function App() {
   /*
@@ -81,7 +63,9 @@ function App() {
       {!token && <AuthGate />}
 
       {token && (
-      <PageWrapper
+      <PanelBoard
+        key={activeSection}
+        sectionId={activeSection}
         header={
           <>
             <ProfileHeader />
@@ -98,54 +82,6 @@ function App() {
               </div>
             </div>
           </>
-        }
-
-        leftColumn={
-          activeSection === 'profile' ? (
-            <>
-              <BadgesRow ids={DEV_BADGE_IDS} />
-              <RecentActivity />
-              <ComingSoon title="Комментарии" icon="💬" />
-            </>
-          ) : activeSection === 'fitness' ? (
-            <>
-              <FitnessStatsStrip />
-              <WorkoutLog />
-              <AgeGroupLeaderboard />
-              <ExerciseLibrary />
-              <ComingSoon title="Хобби" icon="🎨" />
-              <ComingSoon title="Любимые фильмы" icon="🎬" />
-            </>
-          ) : (
-            <>
-              <BadgesRow ids={GAME_BADGE_IDS} />
-              <SteamAchievements />
-              <GameLibrary />
-            </>
-          )
-        }
-
-        rightColumn={
-          activeSection === 'profile' ? (
-            <>
-              <GithubStats />
-              <ComingSoon title="Друзья"  icon="👥" />
-              <ComingSoon title="Группы"  icon="🏠" />
-            </>
-          ) : activeSection === 'fitness' ? (
-            <>
-              <FitnessBadgesRow />
-              <Stopwatch />
-              <InBodyPanel />
-              <ComingSoon title="Чаты" icon="💬" />
-            </>
-          ) : (
-            <>
-              <SteamStats />
-              <FavoriteGames />
-              <AchievementsLibrary />
-            </>
-          )
         }
       />
       )}

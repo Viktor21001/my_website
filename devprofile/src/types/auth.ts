@@ -1,5 +1,5 @@
 import type { AgeGroup } from './fitness'
-import type { BackgroundConfig } from './profile'
+import type { BackgroundConfig, PanelLayoutPrefs } from './profile'
 
 export interface AuthUser {
   id: string
@@ -20,6 +20,7 @@ export interface AuthUser {
   steamId: string | null
   favoriteSteamAppIds: number[]
   background: BackgroundConfig
+  panelLayout: PanelLayoutPrefs | null
 }
 
 // Любое подмножество полей профиля, которые можно поменять в Настройках
@@ -36,6 +37,7 @@ export interface UpdateProfilePayload {
   steamApiKey?: string
   favoriteSteamAppIds?: number[]
   background?: BackgroundConfig
+  panelLayout?: PanelLayoutPrefs
 }
 
 export interface ChangePasswordPayload {

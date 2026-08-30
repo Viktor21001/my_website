@@ -28,6 +28,7 @@ import {
 } from '../../../hooks/useFitnessData'
 import { useUpdateProfile } from '../../../hooks/useProfile'
 import { extractApiError } from '../../../utils/apiError'
+import { PanelHeader } from '../../shared/PanelHeader'
 import type { Exercise, MuscleGroup, NewExercise } from '../../../types/fitness'
 
 const GROUP_LABELS: Record<MuscleGroup, string> = {
@@ -60,37 +61,34 @@ export function ExerciseLibrary() {
 
   return (
     <motion.div className="dp-panel overflow-hidden" variants={staggerItemVariants}>
-      <div
-        className="flex items-center justify-between"
-        style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--dp-border)' }}
-      >
-        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
-          Библиотека упражнений
-        </span>
-        <div className="flex">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="relative flex items-center gap-1.5 px-3 py-2.5 text-xs transition-all duration-150"
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: tab === t.id ? 'var(--dp-text-white)' : 'var(--dp-text-secondary)',
-              }}
-            >
-              {t.label} <span style={{ color: 'var(--dp-text-muted)' }}>{t.count}</span>
-              {tab === t.id && (
-                <motion.div
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ background: 'var(--dp-green)' }}
-                  layoutId="activeExerciseLibraryTab"
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="Библиотека упражнений"
+        right={
+          <div className="flex">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="relative flex items-center gap-1.5 px-3 py-2.5 text-xs transition-all duration-150"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: tab === t.id ? 'var(--dp-text-white)' : 'var(--dp-text-secondary)',
+                }}
+              >
+                {t.label} <span style={{ color: 'var(--dp-text-muted)' }}>{t.count}</span>
+                {tab === t.id && (
+                  <motion.div
+                    className="absolute bottom-0 left-0 right-0 h-0.5"
+                    style={{ background: 'var(--dp-green)' }}
+                    layoutId="activeExerciseLibraryTab"
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/*
         variants вместо своих initial/animate — тван на key={tab}-ремаунте

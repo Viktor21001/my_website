@@ -10,6 +10,7 @@ import { useGetProfileQuery } from '../../../store/api/githubApi'
 import { useAppSelector } from '../../../hooks/redux'
 import { LanguageBar } from '../LanguageBar'
 import { SkeletonCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 export function GithubStats() {
   const username = useAppSelector((state) => state.auth.user?.githubUsername ?? '')
@@ -29,7 +30,7 @@ export function GithubStats() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">GitHub</div>
+      <PanelHeader title="GitHub" />
 
       <div className="p-3 flex flex-col gap-3">
 

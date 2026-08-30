@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import { useRecentGames, useRecentGamesAchievements, formatPlaytime, formatLastPlayed } from '../../../hooks/useSteam'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { SkeletonCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 export function SteamAchievements() {
   const { games, isLoading: gamesLoading } = useRecentGames()
@@ -24,19 +25,14 @@ export function SteamAchievements() {
 
   return (
     <motion.div className="dp-panel overflow-hidden" variants={staggerItemVariants}>
-      <div
-        className="flex items-center justify-between"
-        style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--dp-border)' }}
-      >
-        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
-          Недавняя активность
-        </span>
-        {totalMinutes2Weeks > 0 && (
+      <PanelHeader
+        title="Недавняя активность"
+        right={totalMinutes2Weeks > 0 && (
           <span className="text-xs mr-3" style={{ color: 'var(--dp-text-muted)' }}>
             {formatPlaytime(totalMinutes2Weeks)} за последние 2 недели
           </span>
         )}
-      </div>
+      />
 
       <div className="flex flex-col">
         {games.map((game) => {

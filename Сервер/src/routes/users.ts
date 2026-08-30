@@ -15,10 +15,24 @@ interface BackgroundInput {
   opacity?: unknown
 }
 
+const PANEL_SECTIONS = ['profile', 'fitness', 'games']
+
+// { left: string[], right: string[] } — форму содержимого (реальны ли эти id
+// сейчас в реестре панелей) сервер не проверяет, реестр есть только на клиенте
+function isPanelColumnLayout(value: unknown): boolean {
+  return (
+    typeof value === 'object' && value !== null &&
+    Array.isArray((value as Record<string, unknown>).left) &&
+    Array.isArray((value as Record<string, unknown>).right) &&
+    (value as { left: unknown[] }).left.every((x) => typeof x === 'string') &&
+    (value as { right: unknown[] }).right.every((x) => typeof x === 'string')
+  )
+}
+
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background, panelLayout } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -33,6 +47,13 @@ router.patch(
     // не дублируем на сервере список часовых поясов из клиентского селекта
     if (timezone && (typeof timezone !== 'string' || !Intl.supportedValuesOf('timeZone').includes(timezone))) {
       throw new HttpError(400, 'Некорректный часовой пояс')
+    }
+    if (
+      panelLayout !== undefined &&
+      (typeof panelLayout !== 'object' || panelLayout === null || Array.isArray(panelLayout) ||
+        !Object.entries(panelLayout).every(([key, value]) => PANEL_SECTIONS.includes(key) && isPanelColumnLayout(value)))
+    ) {
+      throw new HttpError(400, 'Некорректный порядок панелей')
     }
 
     const data: Record<string, unknown> = {}
@@ -51,6 +72,9 @@ router.patch(
     if (steamApiKey !== undefined) data.steamApiKey = steamApiKey || null
     // Лимит в 7 проверяем и на сервере — не доверяем только клиентской валидации
     if (favoriteSteamAppIds !== undefined) data.favoriteSteamAppIds = favoriteSteamAppIds.slice(0, 7)
+    // Клиент всегда шлёт весь объект по всем вкладкам целиком (не diff),
+    // как и background пересобирается целиком перед отправкой
+    if (panelLayout !== undefined) data.panelLayout = panelLayout
 
     if (background !== undefined) {
       const bg = background as BackgroundInput

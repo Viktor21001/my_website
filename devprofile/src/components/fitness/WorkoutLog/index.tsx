@@ -18,6 +18,7 @@ import { AddWorkoutForm } from '../AddWorkoutForm'
 import { AddInBodyForm } from '../AddInBodyForm'
 import { WorkoutPlayer, type PlayerStep } from '../WorkoutPlayer'
 import { EmptyCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 import type { Workout } from '../../../types/fitness'
 
 type Tab = 'workouts' | 'measurements' | 'inbody'
@@ -118,42 +119,37 @@ export function WorkoutLog() {
   return (
     <>
     <motion.div className="dp-panel" variants={staggerItemVariants}>
-      {/* Шапка с вкладками */}
-      <div
-        className="flex items-center justify-between"
-        style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--dp-border)' }}
-      >
-        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
-          Дневник тренировок
-        </span>
-
-        <div className="flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="relative flex items-center gap-1.5 px-3 py-2.5 text-xs transition-all duration-150"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: activeTab === tab.id ? 'var(--dp-text-white)' : 'var(--dp-text-secondary)',
-              }}
-            >
-              <span style={{ fontSize: 10 }}>{tab.icon}</span>
-              {tab.label}
-              {activeTab === tab.id && (
-                <motion.div
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ background: 'var(--dp-green)' }}
-                  layoutId="activeFitnessTab"
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PanelHeader
+        title="Дневник тренировок"
+        right={
+          <div className="flex">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="relative flex items-center gap-1.5 px-3 py-2.5 text-xs transition-all duration-150"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: activeTab === tab.id ? 'var(--dp-text-white)' : 'var(--dp-text-secondary)',
+                }}
+              >
+                <span style={{ fontSize: 10 }}>{tab.icon}</span>
+                {tab.label}
+                {activeTab === tab.id && (
+                  <motion.div
+                    className="absolute bottom-0 left-0 right-0 h-0.5"
+                    style={{ background: 'var(--dp-green)' }}
+                    layoutId="activeFitnessTab"
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/*
         Контент вкладок — variants вместо своих initial/animate: тван на

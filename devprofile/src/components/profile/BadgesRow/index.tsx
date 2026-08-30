@@ -5,6 +5,7 @@ import { useAppSelector } from '../../../hooks/redux'
 import { BADGE_CONFIG } from '../../../config/badges'
 import { staggerItemVariants, tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
+import { PanelHeader } from '../../shared/PanelHeader'
 import type { Badge, BadgeId } from '../../../types/profile'
 
 const TOOLTIP_WIDTH = 192
@@ -16,11 +17,11 @@ export function BadgesRow({ ids }: { ids?: BadgeId[] } = {}) {
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
-      <div className="dp-section-title">
+      <PanelHeader title={<>
         Значки{' '}
         <span style={{ color: 'var(--dp-accent)' }}>{badges.length}</span>
         <span style={{ color: 'var(--dp-text-muted)' }}> / {allIds.length}</span>
-      </div>
+      </>} />
       <div className="p-3 flex flex-wrap gap-2">
         {allIds.map((id) => (
           <BadgeItem

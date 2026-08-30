@@ -7,6 +7,7 @@
 
 import { useSteamPlayer, useOwnedGames, useWishlistCount } from '../../../hooks/useSteam'
 import { SkeletonCard } from '../../shared/Card'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 const STATUS_LABELS: Record<number, string> = {
   0: '⚫ Не в сети',
@@ -29,7 +30,7 @@ export function SteamStats() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div className="dp-section-title">Steam</div>
+      <PanelHeader title="Steam" />
 
       <div className="p-3 flex flex-col gap-3">
 

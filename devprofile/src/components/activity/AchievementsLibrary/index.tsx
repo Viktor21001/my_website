@@ -23,6 +23,7 @@ import { useAchievementsLibrary } from '../../../hooks/useSteam'
 import { useTooltipPosition } from '../../../hooks/useTooltipPosition'
 import { tooltipVariants } from '../../../hooks/useAnimatedMount'
 import { HelpTooltipIcon } from '../../shared/HelpTooltipIcon'
+import { PanelHeader } from '../../shared/PanelHeader'
 import { STEAM_API_KEY_HELP_SECTIONS } from '../../../config/steamHelp'
 import type { SteamAchievementDetail } from '../../../types/steam'
 
@@ -75,7 +76,7 @@ export function AchievementsLibrary() {
   if (!user?.hasSteamApiKey) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Достижения</div>
+        <PanelHeader title="Достижения" />
         <div
           className="flex flex-col items-center text-center gap-2 px-6 py-7"
           style={{ opacity: 0.55 }}
@@ -94,7 +95,7 @@ export function AchievementsLibrary() {
   if (isLoading) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Достижения</div>
+        <PanelHeader title="Достижения" />
         <div className="p-4 text-xs" style={{ color: 'var(--dp-text-muted)' }}>Загрузка…</div>
       </div>
     )
@@ -103,7 +104,7 @@ export function AchievementsLibrary() {
   if (isError) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Достижения</div>
+        <PanelHeader title="Достижения" />
         <div className="p-4 text-xs" style={{ color: 'var(--dp-orange)' }}>Не удалось загрузить достижения</div>
       </div>
     )
@@ -120,7 +121,7 @@ export function AchievementsLibrary() {
   if (games.length === 0) {
     return (
       <div className="dp-panel overflow-hidden">
-        <div className="dp-section-title">Достижения</div>
+        <PanelHeader title="Достижения" />
         <div className="flex flex-col items-center text-center gap-2 px-6 py-6">
           <div className="text-xs" style={{ color: 'var(--dp-text-secondary)' }}>
             Ещё не синхронизировано — на большую библиотеку может уйти минута-другая.
@@ -144,24 +145,23 @@ export function AchievementsLibrary() {
 
   return (
     <div className="dp-panel overflow-hidden">
-      <div
-        className="flex items-center justify-between"
-        style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--dp-border)' }}
-      >
-        <span className="dp-section-title" style={{ border: 'none', background: 'none' }}>
+      <PanelHeader
+        title={<>
           Достижения{' '}
           <span style={{ color: 'var(--dp-text-muted)' }}>{allAchievements.length}</span>
-        </span>
-        <button
-          onClick={handleSync}
-          disabled={isSyncing}
-          title={lastSyncedAt ? `Обновлено ${new Date(lastSyncedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Синхронизировать'}
-          className="mr-3"
-          style={{ background: 'none', border: 'none', cursor: isSyncing ? 'default' : 'pointer', color: 'var(--dp-text-secondary)', fontSize: 13 }}
-        >
-          {isSyncing ? '…' : '🔄'}
-        </button>
-      </div>
+        </>}
+        right={
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            title={lastSyncedAt ? `Обновлено ${new Date(lastSyncedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Синхронизировать'}
+            className="mr-3"
+            style={{ background: 'none', border: 'none', cursor: isSyncing ? 'default' : 'pointer', color: 'var(--dp-text-secondary)', fontSize: 13 }}
+          >
+            {isSyncing ? '…' : '🔄'}
+          </button>
+        }
+      />
 
       {isSyncing && syncProgress && (
         <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: '1px solid var(--dp-border)' }}>

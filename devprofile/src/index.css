@@ -124,6 +124,20 @@ body {
   border-bottom: 1px solid var(--dp-border);
 }
 
+.dp-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  color: var(--dp-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  touch-action: none; /* иначе на тач-устройствах жест перетаскивания конфликтует со скроллом страницы */
+}
+.dp-drag-handle:hover { color: var(--dp-text-white); }
+
 .dp-link {
   color: var(--dp-accent);
   text-decoration: none;

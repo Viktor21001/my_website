@@ -10,6 +10,7 @@ import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { xpProgressPercent, XP_PER_LEVEL } from '../../../config/constants'
 import { longestDailyStreak } from '../../../utils/fitnessCalc'
 import { useWorkouts, useMeasurements, useInBodyResults } from '../../../hooks/useFitnessData'
+import { PanelHeader } from '../../shared/PanelHeader'
 
 export function FitnessStatsStrip() {
   const { level, xp } = useAppSelector((state) => state.fitness)
@@ -27,7 +28,7 @@ export function FitnessStatsStrip() {
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
-      <div className="dp-section-title">Мой прогресс</div>
+      <PanelHeader title="Мой прогресс" />
 
       <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         {/* Уровень + XP */}

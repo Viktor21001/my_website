@@ -25,6 +25,7 @@ export function serializeUser(user: User) {
     // id) — только флаг, настроен ли он, для UI («блок достижений активен»)
     hasSteamApiKey: Boolean(user.steamApiKey),
     favoriteSteamAppIds: user.favoriteSteamAppIds,
+    panelLayout: user.panelLayout ?? null,
     background: {
       type: user.backgroundType,
       url: user.backgroundUrl,
