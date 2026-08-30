@@ -1,5 +1,5 @@
 /*
-  SectionTabs — верхний переключатель Dev / Fitness.
+  SectionTabs — верхний переключатель Dev / Fitness / Games.
   Тот же паттерн таб-кнопок + layoutId-подчёркивание, что и в
   RecentActivity/WorkoutLog, но привязан к глобальному uiSlice.activeSection,
   а не к локальному состоянию — переключает контент всей страницы.
@@ -13,6 +13,7 @@ import type { ActiveSection } from '../../../store/slices/uiSlice'
 const SECTIONS: { id: ActiveSection; label: string; icon: string }[] = [
   { id: 'profile', label: 'Dev',     icon: '💻' },
   { id: 'fitness', label: 'Fitness', icon: '🏋️' },
+  { id: 'games',   label: 'Games',   icon: '🎮' },
 ]
 
 export function SectionTabs() {

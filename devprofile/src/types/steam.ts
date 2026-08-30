@@ -24,6 +24,33 @@ export interface GameAchievementSummary {
   unlockedIcons: string[]
 }
 
+/*
+  Достижение с полными деталями (не только иконка) — приходит из
+  собственного кэша сервера (GET /steam-achievements), а не напрямую
+  из Steam Web API. См. Сервер/src/routes/steamAchievements.ts —
+  форма ровно повторяет то, что там кладётся в БД как JSON.
+*/
+export interface SteamAchievementDetail {
+  apiname: string
+  displayName: string
+  description: string
+  icon: string
+  iconGray: string
+  unlocked: boolean
+  unlockTime: number | null // unix timestamp, только если unlocked
+  globalPercent: number | null // % всех игроков Steam, у кого есть это достижение
+}
+
+// Кэш достижений одной игры одного пользователя — одна строка SteamGameAchievements в БД
+export interface SteamGameAchievementsCache {
+  appId: number
+  gameName: string
+  achievements: SteamAchievementDetail[]
+  achievedCount: number
+  totalCount: number
+  syncedAt: string
+}
+
 export interface SteamPlayer {
   steamId: string
   personaName: string  // никнейм в Steam

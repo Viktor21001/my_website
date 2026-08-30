@@ -92,6 +92,13 @@ export const BADGE_CONFIG: Record<BadgeId, Omit<Badge, 'id' | 'unlockedAt'>> = {
   },
 }
 
+// Игровые бейджи (Steam) — показываются на вкладке Games, а не среди
+// остальных (GitHub-based) бейджей на вкладке Dev, см. BadgesRow
+export const GAME_BADGE_IDS: BadgeId[] = ['gamer', 'hardcore']
+
+export const DEV_BADGE_IDS: BadgeId[] = (Object.keys(BADGE_CONFIG) as BadgeId[])
+  .filter((id) => !GAME_BADGE_IDS.includes(id))
+
 // Утилита — собирает объект Badge из конфига + id + дата
 export function makeBadge(
   id: BadgeId,

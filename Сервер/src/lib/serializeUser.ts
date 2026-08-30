@@ -21,6 +21,9 @@ export function serializeUser(user: User) {
     createdAt: user.createdAt,
     githubUsername: user.githubUsername,
     steamId: user.steamId,
+    // Сам ключ клиенту не отдаём (это секрет пользователя, а не публичный
+    // id) — только флаг, настроен ли он, для UI («блок достижений активен»)
+    hasSteamApiKey: Boolean(user.steamApiKey),
     favoriteSteamAppIds: user.favoriteSteamAppIds,
     background: {
       type: user.backgroundType,

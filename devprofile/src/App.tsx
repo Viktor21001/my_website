@@ -29,7 +29,9 @@ import { ProfileHeader }    from './components/profile/ProfileHeader'
 import { StatusBar }        from './components/profile/StatusBar'
 import { BadgesRow }        from './components/profile/BadgesRow'
 import { RecentActivity }   from './components/activity/RecentActivity'
+import { GameLibrary }      from './components/activity/GameLibrary'
 import { FavoriteGames }    from './components/activity/FavoriteGames'
+import { AchievementsLibrary } from './components/activity/AchievementsLibrary'
 import { FavoriteGamesPicker } from './components/activity/FavoriteGamesPicker'
 import { GithubStats }      from './components/stats/GithubStats'
 import { SteamStats }       from './components/stats/SteamStats'
@@ -37,6 +39,7 @@ import { SteamAchievements } from './components/stats/SteamAchievements'
 import { ComingSoon }       from './components/shared/ComingSoon'
 import { AuthGate }         from './components/auth/AuthGate'
 import { SettingsPanel }    from './components/settings/SettingsPanel'
+import { DEV_BADGE_IDS, GAME_BADGE_IDS } from './config/badges'
 
 import { FitnessStatsStrip }    from './components/fitness/FitnessStatsStrip'
 import { WorkoutLog }           from './components/fitness/WorkoutLog'
@@ -100,11 +103,11 @@ function App() {
         leftColumn={
           activeSection === 'profile' ? (
             <>
-              <BadgesRow />
+              <BadgesRow ids={DEV_BADGE_IDS} />
               <RecentActivity />
               <ComingSoon title="Комментарии" icon="💬" />
             </>
-          ) : (
+          ) : activeSection === 'fitness' ? (
             <>
               <FitnessStatsStrip />
               <WorkoutLog />
@@ -112,7 +115,12 @@ function App() {
               <ExerciseLibrary />
               <ComingSoon title="Хобби" icon="🎨" />
               <ComingSoon title="Любимые фильмы" icon="🎬" />
+            </>
+          ) : (
+            <>
+              <BadgesRow ids={GAME_BADGE_IDS} />
               <SteamAchievements />
+              <GameLibrary />
             </>
           )
         }
@@ -121,17 +129,21 @@ function App() {
           activeSection === 'profile' ? (
             <>
               <GithubStats />
-              <SteamStats />
-              <FavoriteGames />
               <ComingSoon title="Друзья"  icon="👥" />
               <ComingSoon title="Группы"  icon="🏠" />
             </>
-          ) : (
+          ) : activeSection === 'fitness' ? (
             <>
               <FitnessBadgesRow />
               <Stopwatch />
               <InBodyPanel />
               <ComingSoon title="Чаты" icon="💬" />
+            </>
+          ) : (
+            <>
+              <SteamStats />
+              <FavoriteGames />
+              <AchievementsLibrary />
             </>
           )
         }

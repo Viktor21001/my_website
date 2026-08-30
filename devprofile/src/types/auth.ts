@@ -11,6 +11,9 @@ export interface AuthUser {
   location: string | null
   timezone: string | null
   exerciseLibraryName: string | null
+  // Сам ключ сервер не отдаёт (см. Сервер/src/lib/serializeUser.ts) —
+  // только флаг, настроен ли он, чтобы включить блок «Достижения»
+  hasSteamApiKey: boolean
   ageGroup: AgeGroup
   createdAt: string
   githubUsername: string | null
@@ -29,6 +32,8 @@ export interface UpdateProfilePayload {
   exerciseLibraryName?: string | null
   githubUsername?: string | null
   steamId?: string | null
+  // '' — явная очистка сохранённого ключа, см. PATCH /users/me
+  steamApiKey?: string
   favoriteSteamAppIds?: number[]
   background?: BackgroundConfig
 }

@@ -18,7 +18,7 @@ interface BackgroundInput {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, favoriteSteamAppIds, background } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -44,6 +44,11 @@ router.patch(
     if (exerciseLibraryName !== undefined) data.exerciseLibraryName = exerciseLibraryName || null
     if (githubUsername !== undefined) data.githubUsername = githubUsername || null
     if (steamId !== undefined) data.steamId = steamId || null
+    // '' — явная очистка ключа (кнопка «Удалить ключ»), непереданное поле
+    // оставляем как есть — маскированное поле в Настройках не подгружает
+    // текущее значение, так что «оставили пустым» и «хотим стереть» не
+    // должны означать одно и то же
+    if (steamApiKey !== undefined) data.steamApiKey = steamApiKey || null
     // Лимит в 7 проверяем и на сервере — не доверяем только клиентской валидации
     if (favoriteSteamAppIds !== undefined) data.favoriteSteamAppIds = favoriteSteamAppIds.slice(0, 7)
 

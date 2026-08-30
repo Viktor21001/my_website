@@ -62,6 +62,12 @@ model User {
   // Не заполняются при регистрации — донастраиваются в Настройках профиля
   githubUsername    String?
   steamId           String?
+  // Личный Steam Web API ключ — только для синхронизации достижений по
+  // всей библиотеке (см. SteamGameAchievements). Публичный VITE_STEAM_API_KEY
+  // с фронтенда для этого не годится: понадобились бы сотни запросов прямо
+  // из браузера при каждой загрузке страницы. Клиенту обратно не отдаётся —
+  // serializeUser отдаёт только hasSteamApiKey (см. lib/serializeUser.ts)
+  steamApiKey       String?
   backgroundType    String  @default("preset")
   backgroundUrl     String  @default("")
   backgroundBlur    Int     @default(0)
@@ -74,10 +80,11 @@ model User {
   // клиент показывает дефолтное «Моя библиотека»
   exerciseLibraryName String?
 
-  measurements    BodyMeasurement[]
-  inbodyResults   InBodyResult[]
-  workouts        Workout[]
-  customExercises Exercise[]        @relation("ExerciseCreator")
+  measurements      BodyMeasurement[]
+  inbodyResults     InBodyResult[]
+  workouts          Workout[]
+  customExercises   Exercise[]              @relation("ExerciseCreator")
+  steamAchievements SteamGameAchievements[]
 }
 
 model BodyMeasurement {
@@ -169,6 +176,27 @@ model Workout {
 
   sets WorkoutSet[]
 
+  @@index([userId])
+}
+
+// Кэш достижений по одной игре одного пользователя — наполняется вручную
+// через POST /steam-achievements/sync, а не на каждый запрос: полная
+// синхронизация всей библиотеки — это сотни обращений к Steam Web API,
+// делать их при каждой загрузке страницы нельзя (см. routes/steamAchievements.ts)
+model SteamGameAchievements {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appId         Int
+  gameName      String
+  // AchievementDetail[] — apiname/displayName/description/icon/unlocked/
+  // unlockTime/globalPercent, форма описана в devprofile/src/types/steam.ts
+  achievements  Json
+  achievedCount Int
+  totalCount    Int
+  syncedAt      DateTime @default(now())
+
+  @@unique([userId, appId])
   @@index([userId])
 }
 

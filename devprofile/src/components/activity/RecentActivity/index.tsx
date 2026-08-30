@@ -1,27 +1,23 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { GithubProjectCard } from '../GithubProjectCard'
-import { GameCard } from '../GameCard'
 import { ActivityFeed } from '../ActivityFeed'
 import { GithubContributions } from '../../stats/GithubContributions'
 import { SkeletonCard, ErrorCard, EmptyCard } from '../../shared/Card'
 import { staggerItemVariants } from '../../../hooks/useAnimatedMount'
 import { useRecentRepos } from '../../../hooks/useGithub'
-import { useRecentGames } from '../../../hooks/useSteam'
 
-type Tab = 'projects' | 'activity' | 'games'
+type Tab = 'projects' | 'activity'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'projects',  label: 'Проекты', icon: '⌥' },
   { id: 'activity',  label: 'GitHub',  icon: '↑' },
-  { id: 'games',     label: 'Игры',    icon: '◈' },
 ]
 
 export function RecentActivity() {
   const [activeTab, setActiveTab] = useState<Tab>('projects')
 
   const { repos, isLoading: reposLoading, isError: reposError } = useRecentRepos()
-  const { games, isLoading: gamesLoading, isError: gamesError } = useRecentGames()
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
@@ -96,19 +92,6 @@ export function RecentActivity() {
             <GithubContributions />
             <ActivityFeed />
           </div>
-        )}
-
-        {activeTab === 'games' && (
-          <>
-            {gamesLoading && <SkeletonCard />}
-            {gamesError   && <ErrorCard message="Проверь настройки приватности Steam" />}
-            {!gamesLoading && !gamesError && games.length === 0 && (
-              <EmptyCard message="Нет игр за последние 2 недели" />
-            )}
-            {!gamesLoading && !gamesError && games.map((game) => (
-              <GameCard key={game.appId} game={game} />
-            ))}
-          </>
         )}
       </motion.div>
 

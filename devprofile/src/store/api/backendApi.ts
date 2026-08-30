@@ -21,6 +21,7 @@ import type {
   UpdateExercisePayload,
   Workout,
 } from '../../types/fitness'
+import type { SteamGameAchievementsCache } from '../../types/steam'
 
 /*
   baseUrl — свой Express-сервер (папка Сервер\), а не внешний API,
@@ -39,7 +40,7 @@ export const backendApi = createApi({
     },
   }),
 
-  tagTypes: ['Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard'],
+  tagTypes: ['Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard', 'SteamAchievements'],
 
   endpoints: (builder) => ({
 
@@ -113,6 +114,25 @@ export const backendApi = createApi({
       providesTags: ['Leaderboard'],
     }),
 
+    /*
+      Кэш достижений по всей Steam-библиотеке — читает уже готовые данные
+      из БД (см. Сервер/src/routes/steamAchievements.ts), никаких запросов
+      к Steam при каждой загрузке страницы. syncSteamAchievements — сама
+      синхронизация, может занимать десятки секунд на большую библиотеку,
+      поэтому это отдельное действие по кнопке, а не что-то фоновое.
+    */
+    getSteamAchievementsCache: builder.query<
+      { games: SteamGameAchievementsCache[]; lastSyncedAt: string | null },
+      void
+    >({
+      query: () => '/steam-achievements',
+      providesTags: ['SteamAchievements'],
+    }),
+    syncSteamAchievements: builder.mutation<{ gamesSynced: number; gamesChecked: number }, void>({
+      query: () => ({ url: '/steam-achievements/sync', method: 'POST' }),
+      invalidatesTags: ['SteamAchievements'],
+    }),
+
   }),
 })
 
@@ -133,4 +153,6 @@ export const {
   useUpdateExerciseMutation,
   useDeleteExerciseMutation,
   useGetLeaderboardQuery,
+  useGetSteamAchievementsCacheQuery,
+  useSyncSteamAchievementsMutation,
 } = backendApi

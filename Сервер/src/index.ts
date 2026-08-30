@@ -8,6 +8,7 @@ import workoutsRouter from './routes/workouts'
 import exercisesRouter from './routes/exercises'
 import leaderboardRouter from './routes/leaderboard'
 import usersRouter from './routes/users'
+import steamAchievementsRouter from './routes/steamAchievements'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -44,6 +45,7 @@ app.use('/api/workouts', workoutsRouter)
 app.use('/api/exercises', exercisesRouter)
 app.use('/api/leaderboard', leaderboardRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/steam-achievements', steamAchievementsRouter)
 
 // Последним — errorHandler ловит всё, что бросили asyncHandler-обёртки
 app.use(errorHandler)

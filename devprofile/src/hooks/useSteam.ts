@@ -17,11 +17,13 @@ import {
   useGetWishlistCountQuery,
   useGetGamesAchievementsQuery,
 } from '../store/api/steamApi'
+import { useGetSteamAchievementsCacheQuery, useSyncSteamAchievementsMutation } from '../store/api/backendApi'
 import { SteamPersonaState } from '../types/steam'
-import type { SteamGame } from '../types/steam'
+import type { SteamGame, SteamGameAchievementsCache } from '../types/steam'
 import type { UserStatus } from '../types/profile'
 
 const DEFAULT_FAVORITES_COUNT = 4
+const EMPTY_ACHIEVEMENT_GAMES: SteamGameAchievementsCache[] = []
 
 function useSteamId(): string {
   return useAppSelector((state) => state.auth.user?.steamId ?? '')
@@ -192,6 +194,29 @@ export function useRecentGamesAchievements() {
   )
 
   return { achievements, isLoading, isError }
+}
+
+/*
+  Кэш достижений по всей библиотеке (см. Сервер/src/routes/steamAchievements.ts) —
+  читает уже готовые данные из БД, не дёргает Steam напрямую. Синхронизация
+  (syncAchievements) — отдельное явное действие по кнопке, может занимать
+  десятки секунд на большую библиотеку.
+*/
+export function useAchievementsLibrary() {
+  const token = useAppSelector((state) => state.auth.token)
+  const { data, isLoading, isFetching, isError } = useGetSteamAchievementsCacheQuery(undefined, { skip: !token })
+  const [sync, syncState] = useSyncSteamAchievementsMutation()
+
+  return {
+    games: data?.games ?? EMPTY_ACHIEVEMENT_GAMES,
+    lastSyncedAt: data?.lastSyncedAt ?? null,
+    isLoading,
+    isFetching,
+    isError,
+    sync,
+    isSyncing: syncState.isLoading,
+    syncError: syncState.error,
+  }
 }
 
 // Утилита: минуты → "Xч Yмин" или "Xч"

@@ -9,10 +9,10 @@ import type { Badge, BadgeId } from '../../../types/profile'
 
 const TOOLTIP_WIDTH = 192
 
-export function BadgesRow() {
+export function BadgesRow({ ids }: { ids?: BadgeId[] } = {}) {
   const badges      = useAppSelector((state) => state.profile.badges)
   const unlockedIds = new Set(badges.map((b) => b.id))
-  const allIds      = Object.keys(BADGE_CONFIG) as BadgeId[]
+  const allIds      = ids ?? (Object.keys(BADGE_CONFIG) as BadgeId[])
 
   return (
     <motion.div className="dp-panel" variants={staggerItemVariants}>
