@@ -15,7 +15,7 @@ interface BackgroundInput {
   opacity?: unknown
 }
 
-const PANEL_SECTIONS = ['profile', 'fitness', 'games']
+const PANEL_SECTIONS = ['general', 'profile', 'fitness', 'games']
 
 // { left: string[], right: string[] } — форму содержимого (реальны ли эти id
 // сейчас в реестре панелей) сервер не проверяет, реестр есть только на клиенте
@@ -32,7 +32,7 @@ function isPanelColumnLayout(value: unknown): boolean {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background, panelLayout } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background, panelLayout, defaultSection } = req.body ?? {}
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -55,6 +55,9 @@ router.patch(
     ) {
       throw new HttpError(400, 'Некорректный порядок панелей')
     }
+    if (defaultSection && !PANEL_SECTIONS.includes(defaultSection)) {
+      throw new HttpError(400, 'Некорректная вкладка по умолчанию')
+    }
 
     const data: Record<string, unknown> = {}
     if (displayName !== undefined) data.displayName = displayName
@@ -75,6 +78,7 @@ router.patch(
     // Клиент всегда шлёт весь объект по всем вкладкам целиком (не diff),
     // как и background пересобирается целиком перед отправкой
     if (panelLayout !== undefined) data.panelLayout = panelLayout
+    if (defaultSection !== undefined) data.defaultSection = defaultSection || null
 
     if (background !== undefined) {
       const bg = background as BackgroundInput

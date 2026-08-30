@@ -2,7 +2,7 @@
   PanelDragContext — прокидывает dnd-kit'овские attributes/listeners
   ручке-хваталке внутри PanelHeader, не заставляя каждую панель принимать
   их пропсами (панели сегодня самодостаточные, без пропсов на эти вещи).
-  Провайдер — SortablePanel; если панель отрендерена вне PanelBoard,
+  Провайдер — SortablePanel; если панель отрендерена вне AppBoard,
   контекст null и PanelHeader просто не показывает ручку.
 */
 

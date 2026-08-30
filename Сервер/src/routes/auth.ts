@@ -35,7 +35,9 @@ router.post(
 
     const passwordHash = await bcrypt.hash(password, 10)
     const user = await prisma.user.create({
-      data: { email, username, passwordHash, displayName, ageGroup: dbAgeGroup },
+      // defaultSection: 'general' — только для новых аккаунтов, явно.
+      // Существующие аккаунты остаются с null (прежнее поведение — Dev)
+      data: { email, username, passwordHash, displayName, ageGroup: dbAgeGroup, defaultSection: 'general' },
     })
 
     const token = signToken(user.id)

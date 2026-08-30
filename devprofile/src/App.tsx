@@ -23,7 +23,7 @@ import { logout } from './store/slices/authSlice'
 import { toggleSettings } from './store/slices/uiSlice'
 
 import { Background }       from './components/layout/Background'
-import { PanelBoard }       from './components/layout/PanelBoard'
+import { AppBoard }         from './components/layout/AppBoard'
 import { SectionTabs }      from './components/layout/SectionTabs'
 import { ProfileHeader }    from './components/profile/ProfileHeader'
 import { StatusBar }        from './components/profile/StatusBar'
@@ -46,7 +46,6 @@ function App() {
   useFitnessRating()
   useSyncAuthUser()
 
-  const activeSection = useAppSelector((state) => state.ui.activeSection)
   const token = useAppSelector((state) => state.auth.token)
   const dispatch = useAppDispatch()
 
@@ -63,9 +62,7 @@ function App() {
       {!token && <AuthGate />}
 
       {token && (
-      <PanelBoard
-        key={activeSection}
-        sectionId={activeSection}
+      <AppBoard
         header={
           <>
             <ProfileHeader />

@@ -26,6 +26,7 @@ export function serializeUser(user: User) {
     hasSteamApiKey: Boolean(user.steamApiKey),
     favoriteSteamAppIds: user.favoriteSteamAppIds,
     panelLayout: user.panelLayout ?? null,
+    defaultSection: user.defaultSection ?? null,
     background: {
       type: user.backgroundType,
       url: user.backgroundUrl,

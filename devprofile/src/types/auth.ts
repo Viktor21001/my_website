@@ -21,6 +21,9 @@ export interface AuthUser {
   favoriteSteamAppIds: number[]
   background: BackgroundConfig
   panelLayout: PanelLayoutPrefs | null
+  // Вкладка, открываемая по умолчанию при входе — null у аккаунтов,
+  // которые никогда это не настраивали (тогда клиент берёт Dev)
+  defaultSection: string | null
 }
 
 // Любое подмножество полей профиля, которые можно поменять в Настройках
@@ -38,6 +41,7 @@ export interface UpdateProfilePayload {
   favoriteSteamAppIds?: number[]
   background?: BackgroundConfig
   panelLayout?: PanelLayoutPrefs
+  defaultSection?: string
 }
 
 export interface ChangePasswordPayload {

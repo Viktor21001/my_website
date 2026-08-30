@@ -1,7 +1,7 @@
 /*
   PanelHeader — общая шапка панели: заголовок слева, любой правый контент
   (под-вкладки, одиночная кнопка-иконка и т.п.) и ручка-хваталка для
-  перетаскивания (если панель внутри PanelBoard) — всегда самая последняя,
+  перетаскивания (если панель внутри AppBoard) — всегда самая последняя,
   в правом углу.
 
   Раньше у каждой панели такая строка была прописана вручную (одни —
@@ -12,8 +12,8 @@
 
 import { useContext } from 'react'
 import type { ReactNode } from 'react'
-import { PanelDragContext } from '../../layout/PanelBoard/dragContext'
-import type { PanelDragCtx } from '../../layout/PanelBoard/dragContext'
+import { PanelDragContext } from '../../layout/AppBoard/dragContext'
+import type { PanelDragCtx } from '../../layout/AppBoard/dragContext'
 
 interface PanelHeaderProps {
   title: ReactNode

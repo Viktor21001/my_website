@@ -173,6 +173,15 @@ function AvatarSection({ user }: { user: AuthUser }) {
   )
 }
 
+// Пустая строка ('') — «не задано», сервер хранит это как null и клиент
+// падает на прежнее поведение (Dev). Порядок и id — как в SectionTabs
+const DEFAULT_SECTION_OPTIONS = [
+  { id: 'general', label: 'General' },
+  { id: 'profile', label: 'Dev' },
+  { id: 'fitness', label: 'Fitness' },
+  { id: 'games', label: 'Games' },
+]
+
 // Если сохранённая локация не входит в список городов — это либо ничего
 // не выбрано, либо раньше ввели что-то своё через «Другое»
 function initialLocationChoice(location: string | null): string {
@@ -188,6 +197,7 @@ function PersonalInfoSection({ user }: { user: AuthUser }) {
     locationChoice === LOCATION_OTHER ? (user.location ?? '') : ''
   )
   const [timezone, setTimezone] = useState(user.timezone ?? '')
+  const [defaultSection, setDefaultSection] = useState(user.defaultSection ?? '')
   const [updateProfile, { isLoading, error }] = useUpdateProfile()
   const [saved, setSaved] = useState(false)
 
@@ -196,7 +206,7 @@ function PersonalInfoSection({ user }: { user: AuthUser }) {
     setSaved(false)
     const location = locationChoice === LOCATION_OTHER ? customLocation : locationChoice
     try {
-      await updateProfile({ displayName, bio, location, timezone: timezone || null })
+      await updateProfile({ displayName, bio, location, timezone: timezone || null, defaultSection })
       setSaved(true)
     } catch {
       // ошибка уже отражена через error ниже
@@ -243,6 +253,17 @@ function PersonalInfoSection({ user }: { user: AuthUser }) {
           className="dp-input" placeholder="О себе" rows={2}
           value={bio} onChange={(e) => setBio(e.target.value)}
         />
+
+        <select
+          className="dp-input" value={defaultSection}
+          onChange={(e) => setDefaultSection(e.target.value)}
+        >
+          <option value="">Вкладка по умолчанию: Dev</option>
+          {DEFAULT_SECTION_OPTIONS.map((s) => (
+            <option key={s.id} value={s.id}>Вкладка по умолчанию: {s.label}</option>
+          ))}
+        </select>
+
         {error && <div className="dp-error">{extractApiError(error, 'Не удалось сохранить')}</div>}
         <div className="flex items-center gap-2">
           <button type="submit" className="dp-btn-primary text-xs self-start" disabled={isLoading}>

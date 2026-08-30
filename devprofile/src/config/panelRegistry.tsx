@@ -29,6 +29,7 @@ import { ExerciseLibrary } from '../components/fitness/ExerciseLibrary'
 import { FitnessBadgesRow } from '../components/fitness/FitnessBadgesRow'
 import { Stopwatch } from '../components/fitness/Stopwatch'
 import { InBodyPanel } from '../components/fitness/InBodyPanel'
+import { ProfileOverview } from '../components/profile/ProfileOverview'
 import { DEV_BADGE_IDS, GAME_BADGE_IDS } from './badges'
 
 export interface PanelEntry {
@@ -42,6 +43,18 @@ export interface SectionPanelDefaults {
 }
 
 export const PANEL_REGISTRY: Record<ActiveSection, SectionPanelDefaults> = {
+  // Пустых "В разработке" заглушек здесь нарочно нет — вкладка для того
+  // и существует, чтобы пользователь сам наполнял её перетаскиванием
+  // панелей с других вкладок; пустое место тут ожидаемо
+  general: {
+    left: [
+      { id: 'general-badges', node: <BadgesRow /> },
+      { id: 'general-fitness-badges', node: <FitnessBadgesRow /> },
+    ],
+    right: [
+      { id: 'general-overview', node: <ProfileOverview /> },
+    ],
+  },
   profile: {
     left: [
       { id: 'dev-badges', node: <BadgesRow ids={DEV_BADGE_IDS} /> },
@@ -91,3 +104,14 @@ export const PANEL_LOOKUP: Record<ActiveSection, Record<string, PanelEntry>> = O
     Object.fromEntries([...left, ...right].map((entry) => [entry.id, entry])),
   ])
 ) as Record<ActiveSection, Record<string, PanelEntry>>
+
+/*
+  То же самое, но одним плоским объектом по ВСЕМ вкладкам сразу. Нужен
+  отдельно от PANEL_LOOKUP: панель можно перетащить на чужую вкладку
+  (id остаётся тем же, «домашний» реестр — той вкладки, где она была
+  заведена изначально), поэтому проверка «жив ли ещё этот id» и резолв
+  id -> узел в usePanelOrder должны смотреть по всем вкладкам сразу, а не
+  только в реестре текущей — иначе перенесённая панель после каждой новой
+  загрузки страницы считалась бы «неизвестной» и молча выбрасывалась.
+*/
+export const GLOBAL_PANEL_LOOKUP: Record<string, PanelEntry> = Object.assign({}, ...Object.values(PANEL_LOOKUP))

@@ -16,10 +16,10 @@ export function SortablePanel({ id, children }: { id: string; children: ReactNod
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({
       id,
-      // Отключаем FLIP-анимацию перекладки — при переносе между колонками
-      // (см. PanelBoard.onDragOver) она пересчитывает rects прямо во время
-      // драга и провоцирует повторный collision detection в той же
-      // синхронной цепочке, что раньше валило React в "Maximum update
+      // Отключаем FLIP-анимацию перекладки — при переносе между колонками/
+      // вкладками (см. AppBoard.onDragOver) она пересчитывает rects прямо
+      // во время драга и провоцирует повторный collision detection в той
+      // же синхронной цепочке, что раньше валило React в "Maximum update
       // depth exceeded" на кросс-колоночном переносе. Без неё панели
       // просто занимают новое место без плавного скольжения — не так
       // красиво, зато не роняет вкладку
