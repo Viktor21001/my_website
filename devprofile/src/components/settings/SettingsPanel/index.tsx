@@ -18,11 +18,12 @@ import { useChangePasswordMutation } from '../../../store/api/backendApi'
 import { useLazyResolveVanityUrlQuery } from '../../../store/api/steamApi'
 import { parseSteamInput } from '../../../hooks/useSteam'
 import { HelpTooltipIcon } from '../../shared/HelpTooltipIcon'
+import { Avatar } from '../../shared/Avatar'
 import { STEAM_API_KEY_HELP_SECTIONS } from '../../../config/steamHelp'
 import { BACKGROUND_PRESETS, LOCATION_OPTIONS, LOCATION_OTHER, TIMEZONE_OPTIONS } from '../../../config/constants'
 import { slideUpVariants } from '../../../hooks/useAnimatedMount'
 import { extractApiError } from '../../../utils/apiError'
-import type { AuthUser } from '../../../types/auth'
+import type { AuthUser, MessagingPrivacy } from '../../../types/auth'
 import { DEFAULT_BACKGROUND, type BackgroundConfig } from '../../../types/profile'
 
 export function SettingsPanel() {
@@ -91,6 +92,7 @@ export function SettingsPanel() {
               <PersonalInfoSection user={user} />
               <ConnectedAccountsSection user={user} />
               <BackgroundSection user={user} />
+              <PrivacySection user={user} />
               <PasswordSection />
             </div>
           </motion.div>
@@ -143,18 +145,7 @@ function AvatarSection({ user }: { user: AuthUser }) {
     <section>
       <SectionTitle>Аватар</SectionTitle>
       <div className="flex items-center gap-4">
-        <div
-          className="shrink-0 overflow-hidden flex items-center justify-center"
-          style={{ width: 64, height: 64, borderRadius: 6, border: '1px solid var(--dp-border)', background: 'var(--dp-bg-card)' }}
-        >
-          {preview ? (
-            <img src={preview} alt="Аватар" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-2xl font-bold" style={{ color: 'var(--dp-text-secondary)' }}>
-              {user.displayName.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-        </div>
+        <Avatar src={preview} name={user.displayName} size={64} />
         <div className="flex flex-col gap-2">
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
           <div className="flex gap-2">
@@ -494,6 +485,56 @@ function BackgroundSection({ user }: { user: AuthUser }) {
       >
         ✕ Сбросить фон
       </button>
+    </section>
+  )
+}
+
+const PRIVACY_OPTIONS: { value: MessagingPrivacy; label: string; hint: string }[] = [
+  { value: 'EVERYONE', label: 'Все пользователи', hint: 'Написать первым может кто угодно' },
+  { value: 'FRIENDS_ONLY', label: 'Только друзья', hint: 'Не-друг может отправить только заявку в друзья с одним сообщением' },
+  { value: 'NOBODY', label: 'Никто', hint: 'Писать могут только уже добавленные друзья' },
+]
+
+function PrivacySection({ user }: { user: AuthUser }) {
+  const [value, setValue] = useState<MessagingPrivacy>(user.messagingPrivacy)
+  const [updateProfile, { isLoading, error }] = useUpdateProfile()
+  const [saved, setSaved] = useState(false)
+
+  async function save() {
+    setSaved(false)
+    try {
+      await updateProfile({ messagingPrivacy: value })
+      setSaved(true)
+    } catch {
+      // ошибка уже отражена через error ниже
+    }
+  }
+
+  return (
+    <section>
+      <SectionTitle>Кто может написать мне первым</SectionTitle>
+      <div className="flex flex-col gap-2">
+        {PRIVACY_OPTIONS.map((opt) => (
+          <label key={opt.value} className="flex items-start gap-2 text-xs" style={{ cursor: 'pointer' }}>
+            <input
+              type="radio" name="messagingPrivacy" className="mt-0.5"
+              checked={value === opt.value} onChange={() => setValue(opt.value)}
+            />
+            <span>
+              <span style={{ color: 'var(--dp-text-white)' }}>{opt.label}</span>
+              {' — '}
+              <span style={{ color: 'var(--dp-text-muted)' }}>{opt.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {error && <div className="dp-error mt-2">{extractApiError(error, 'Не удалось сохранить')}</div>}
+      <div className="flex items-center gap-2 mt-2">
+        <button onClick={save} className="dp-btn-primary text-xs" disabled={isLoading}>
+          {isLoading ? 'Сохраняем…' : 'Сохранить'}
+        </button>
+        {saved && <span className="text-xs" style={{ color: 'var(--dp-green)' }}>✓ Сохранено</span>}
+      </div>
     </section>
   )
 }

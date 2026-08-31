@@ -6,6 +6,8 @@ import { AGE_GROUPS, AGE_GROUP_LABELS } from '../../../config/fitnessConstants'
 import { useLeaderboard } from '../../../hooks/useFitnessData'
 import { EmptyCard } from '../../shared/Card'
 import { PanelHeader } from '../../shared/PanelHeader'
+import { Avatar } from '../../shared/Avatar'
+import { PersonActions } from '../../social/PersonActions'
 import type { AgeGroup } from '../../../types/fitness'
 
 export function AgeGroupLeaderboard() {
@@ -60,22 +62,7 @@ export function AgeGroupLeaderboard() {
                 {entry.rank}
               </div>
 
-              {entry.avatar ? (
-                <img
-                  src={entry.avatar}
-                  alt={entry.name}
-                  className="w-8 h-8 rounded-sm shrink-0"
-                  style={{ border: '1px solid var(--dp-border)' }}
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
-                />
-              ) : (
-                <div
-                  className="w-8 h-8 rounded-sm shrink-0 flex items-center justify-center text-xs font-semibold"
-                  style={{ background: 'var(--dp-bg-card)', border: '1px solid var(--dp-border)', color: 'var(--dp-text-secondary)' }}
-                >
-                  {entry.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
+              <Avatar src={entry.avatar} name={entry.name} size={32} radius={2} />
 
               <div className="flex-1 min-w-0">
                 <div
@@ -98,6 +85,8 @@ export function AgeGroupLeaderboard() {
                 </div>
                 <div className="text-xs" style={{ color: 'var(--dp-text-muted)' }}>очков</div>
               </div>
+
+              {!entry.isCurrentUser && <PersonActions userId={entry.userId} />}
             </div>
           ))}
         </div>

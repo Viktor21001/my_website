@@ -23,6 +23,35 @@ import type {
 } from '../../types/fitness'
 import type { SteamGameAchievementsCache } from '../../types/steam'
 import type { AdminUsersPage, AuditLogPage, BanPayload } from '../../types/admin'
+import type {
+  FriendRequestDirection,
+  FriendRequestsPage,
+  FriendsPage,
+  SendFriendRequestPayload,
+} from '../../types/friends'
+import type { BlocksPage } from '../../types/blocks'
+import type {
+  ConversationsPage,
+  MessageEntry,
+  MessagesPage,
+  StartDirectConversationResult,
+} from '../../types/chat'
+import type {
+  CreateGroupPayload,
+  GroupCommentEntry,
+  GroupCommentsPage,
+  GroupDetail,
+  GroupJoinRequestEntry,
+  GroupMembersPage,
+  GroupPostEntry,
+  GroupPostsPage,
+  GroupsPage,
+  UpdateGroupPayload,
+} from '../../types/groups'
+import type { SearchResults } from '../../types/search'
+import type { FileReportPayload, ReportEntry, ReportsPage, ResolveReportPayload } from '../../types/reports'
+import type { NotificationsPage } from '../../types/notifications'
+import { getSocket } from '../../lib/socket'
 
 /*
   baseUrl — свой Express-сервер (папка Сервер\), а не внешний API,
@@ -41,7 +70,11 @@ export const backendApi = createApi({
     },
   }),
 
-  tagTypes: ['Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard', 'SteamAchievements', 'AdminUsers'],
+  tagTypes: [
+    'Measurements', 'InBody', 'Workouts', 'Exercises', 'Leaderboard', 'SteamAchievements', 'AdminUsers',
+    'Friends', 'FriendRequests', 'Blocks', 'Conversations', 'Messages',
+    'Groups', 'GroupPosts', 'Notifications',
+  ],
 
   endpoints: (builder) => ({
 
@@ -191,6 +224,382 @@ export const backendApi = createApi({
       },
     }),
 
+    // Очередь жалоб в админ-панели — тот же useLazyQuery+локальный refresh()
+    // паттерн, что «Пользователи»/«Журнал действий» в AdminPanel
+    getAdminReports: builder.query<ReportsPage, { status?: string; cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.status) search.set('status', params.status)
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/admin/reports${qs ? `?${qs}` : ''}`
+      },
+    }),
+    resolveReport: builder.mutation<{ report: ReportEntry }, ResolveReportPayload>({
+      query: ({ id, ...body }) => ({ url: `/admin/reports/${id}/resolve`, method: 'POST', body }),
+    }),
+    rejectReport: builder.mutation<{ report: ReportEntry }, { id: string; note: string }>({
+      query: ({ id, note }) => ({ url: `/admin/reports/${id}/reject`, method: 'POST', body: { note } }),
+    }),
+
+    getFriends: builder.query<FriendsPage, { cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/friends${qs ? `?${qs}` : ''}`
+      },
+      providesTags: ['Friends'],
+    }),
+    removeFriend: builder.mutation<{ ok: boolean }, string>({
+      query: (userId) => ({ url: `/friends/${userId}`, method: 'DELETE' }),
+      invalidatesTags: ['Friends'],
+    }),
+
+    getFriendRequests: builder.query<FriendRequestsPage, { direction: FriendRequestDirection; cursor?: string }>({
+      query: ({ direction, cursor }) => {
+        const search = new URLSearchParams({ direction })
+        if (cursor) search.set('cursor', cursor)
+        return `/friends/requests?${search.toString()}`
+      },
+      providesTags: ['FriendRequests'],
+    }),
+    // Обычная заявка -> invalidatesTags: ['FriendRequests']. Если получатель
+    // уже успел отправить встречную заявку — сервер мгновенно склеивает её в
+    // ACCEPTED (autoAccepted: true в ответе), поэтому дружим тег и с Friends
+    sendFriendRequest: builder.mutation<{ autoAccepted?: boolean }, SendFriendRequestPayload>({
+      query: (body) => ({ url: '/friends/requests', method: 'POST', body }),
+      invalidatesTags: ['FriendRequests', 'Friends'],
+    }),
+    acceptFriendRequest: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/friends/requests/${id}/accept`, method: 'POST' }),
+      invalidatesTags: ['FriendRequests', 'Friends'],
+    }),
+    declineFriendRequest: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/friends/requests/${id}/decline`, method: 'POST' }),
+      invalidatesTags: ['FriendRequests'],
+    }),
+    cancelFriendRequest: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/friends/requests/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['FriendRequests'],
+    }),
+
+    getBlocks: builder.query<BlocksPage, { cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/blocks${qs ? `?${qs}` : ''}`
+      },
+      providesTags: ['Blocks'],
+    }),
+    // Блокировка на сервере ещё и рвёт дружбу, если она была — поэтому
+    // инвалидируем Friends тоже, а не только Blocks
+    blockUser: builder.mutation<{ ok: boolean }, string>({
+      query: (userId) => ({ url: '/blocks', method: 'POST', body: { userId } }),
+      invalidatesTags: ['Blocks', 'Friends'],
+    }),
+    unblockUser: builder.mutation<{ ok: boolean }, string>({
+      query: (userId) => ({ url: `/blocks/${userId}`, method: 'DELETE' }),
+      invalidatesTags: ['Blocks'],
+    }),
+
+    /*
+      Реалтайм-чат. getConversations/getMessages — реактивные useQuery (не
+      Lazy), поэтому их не касается известная по AdminPanel проблема "тег-
+      инвалидация не помогает локально накопленному state". onCacheEntryAdded
+      подписывается на сокет-события ТОЛЬКО пока у запроса есть активный
+      подписчик (открытый чат/список) и правит кэш напрямую через
+      updateCachedData — штатный RTK Query паттерн для потоковых обновлений,
+      не изобретение. getOlderMessages — отдельный эндпоинт специально для
+      кнопки «Показать ещё» (там остаётся Lazy + локальный useState, как в
+      AdminPanel) — не путать со свежей страницей getMessages.
+    */
+    getConversations: builder.query<ConversationsPage, void>({
+      query: () => '/conversations',
+      providesTags: ['Conversations'],
+      async onCacheEntryAdded(_arg, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        try {
+          await cacheDataLoaded
+        } catch {
+          return
+        }
+        const socket = getSocket()
+        if (!socket) {
+          await cacheEntryRemoved
+          return
+        }
+        function onNewMessage(payload: { conversationId: string; message: MessageEntry }) {
+          updateCachedData((draft) => {
+            const idx = draft.conversations.findIndex((c) => c.id === payload.conversationId)
+            if (idx === -1) return // переписки ещё нет в списке — проще перезапросить целиком, чем собирать вручную
+            const [conv] = draft.conversations.splice(idx, 1)
+            conv.lastMessage = { body: payload.message.body, createdAt: payload.message.createdAt, senderId: payload.message.senderId }
+            conv.lastMessageAt = payload.message.createdAt
+            conv.unreadCount += 1
+            draft.conversations.unshift(conv)
+          })
+        }
+        socket.on('message:new', onNewMessage)
+        await cacheEntryRemoved
+        socket.off('message:new', onNewMessage)
+      },
+    }),
+    startDirectConversation: builder.mutation<StartDirectConversationResult, string>({
+      query: (userId) => ({ url: '/conversations/direct', method: 'POST', body: { userId } }),
+      invalidatesTags: ['Conversations'],
+    }),
+
+    getMessages: builder.query<MessagesPage, string>({
+      query: (conversationId) => `/conversations/${conversationId}/messages`,
+      providesTags: (_result, _error, conversationId) => [{ type: 'Messages', id: conversationId }],
+      async onCacheEntryAdded(conversationId, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        try {
+          await cacheDataLoaded
+        } catch {
+          return
+        }
+        const socket = getSocket()
+        if (!socket) {
+          await cacheEntryRemoved
+          return
+        }
+        function onNewMessage(payload: { conversationId: string; message: MessageEntry }) {
+          if (payload.conversationId !== conversationId) return
+          updateCachedData((draft) => {
+            draft.messages.push(payload.message)
+          })
+        }
+        socket.on('message:new', onNewMessage)
+        await cacheEntryRemoved
+        socket.off('message:new', onNewMessage)
+      },
+    }),
+    // Только для догрузки старой истории по клику «Показать ещё» — не
+    // реактивна, используется исключительно через Lazy-вариант
+    getOlderMessages: builder.query<MessagesPage, { conversationId: string; cursor: string }>({
+      query: ({ conversationId, cursor }) => `/conversations/${conversationId}/messages?cursor=${cursor}`,
+    }),
+    sendMessage: builder.mutation<{ message: MessageEntry }, { conversationId: string; body: string }>({
+      query: ({ conversationId, body }) => ({ url: `/conversations/${conversationId}/messages`, method: 'POST', body: { body } }),
+      invalidatesTags: (_result, _error, { conversationId }) => ['Conversations', { type: 'Messages', id: conversationId }],
+    }),
+    markConversationRead: builder.mutation<{ ok: boolean }, string>({
+      query: (conversationId) => ({ url: `/conversations/${conversationId}/read`, method: 'POST' }),
+      invalidatesTags: ['Conversations'],
+    }),
+
+    /*
+      Группы. getGroups обслуживает и обзор/поиск, и «мои группы» (mine:true)
+      — один эндпоинт, как и описано в плане. getGroupPosts — тот же
+      onCacheEntryAdded-паттерн, что getMessages: реактивна, пока открыта
+      стена, лайки/комментарии/новые записи от других участников приходят
+      через сокет и правят кэш точечно, без перезапроса всей страницы.
+    */
+    getGroups: builder.query<GroupsPage, { q?: string; mine?: boolean; cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.q) search.set('q', params.q)
+        if (params?.mine) search.set('mine', 'true')
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/groups${qs ? `?${qs}` : ''}`
+      },
+      providesTags: ['Groups'],
+    }),
+    getGroup: builder.query<{ group: GroupDetail }, string>({
+      query: (id) => `/groups/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'Groups', id }],
+    }),
+    createGroup: builder.mutation<{ group: GroupDetail }, CreateGroupPayload>({
+      query: (body) => ({ url: '/groups', method: 'POST', body }),
+      invalidatesTags: ['Groups'],
+    }),
+    updateGroup: builder.mutation<{ group: GroupDetail }, { id: string } & UpdateGroupPayload>({
+      query: ({ id, ...body }) => ({ url: `/groups/${id}`, method: 'PATCH', body }),
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Groups', id }, 'Groups'],
+    }),
+    deleteGroup: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/groups/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Groups'],
+    }),
+
+    getGroupMembers: builder.query<GroupMembersPage, { groupId: string; cursor?: string }>({
+      query: ({ groupId, cursor }) => {
+        const search = new URLSearchParams()
+        if (cursor) search.set('cursor', cursor)
+        const qs = search.toString()
+        return `/groups/${groupId}/members${qs ? `?${qs}` : ''}`
+      },
+    }),
+    joinGroup: builder.mutation<{ status: 'MEMBER' | 'PENDING' }, string>({
+      query: (id) => ({ url: `/groups/${id}/join`, method: 'POST' }),
+      invalidatesTags: (_result, _error, id) => [{ type: 'Groups', id }, 'Groups'],
+    }),
+    leaveGroup: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/groups/${id}/leave`, method: 'POST' }),
+      invalidatesTags: (_result, _error, id) => [{ type: 'Groups', id }, 'Groups'],
+    }),
+
+    getGroupRequests: builder.query<{ requests: GroupJoinRequestEntry[] }, string>({
+      query: (groupId) => `/groups/${groupId}/requests`,
+    }),
+    approveGroupRequest: builder.mutation<{ ok: boolean }, { groupId: string; userId: string }>({
+      query: ({ groupId, userId }) => ({ url: `/groups/${groupId}/requests/${userId}/approve`, method: 'POST' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'Groups', id: groupId }, 'Groups'],
+    }),
+    rejectGroupRequest: builder.mutation<{ ok: boolean }, { groupId: string; userId: string }>({
+      query: ({ groupId, userId }) => ({ url: `/groups/${groupId}/requests/${userId}/reject`, method: 'POST' }),
+    }),
+    promoteGroupMember: builder.mutation<{ ok: boolean }, { groupId: string; userId: string }>({
+      query: ({ groupId, userId }) => ({ url: `/groups/${groupId}/members/${userId}/promote`, method: 'POST' }),
+    }),
+    demoteGroupMember: builder.mutation<{ ok: boolean }, { groupId: string; userId: string }>({
+      query: ({ groupId, userId }) => ({ url: `/groups/${groupId}/members/${userId}/demote`, method: 'POST' }),
+    }),
+    removeGroupMember: builder.mutation<{ ok: boolean }, { groupId: string; userId: string }>({
+      query: ({ groupId, userId }) => ({ url: `/groups/${groupId}/members/${userId}`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'Groups', id: groupId }, 'Groups'],
+    }),
+
+    getGroupPosts: builder.query<GroupPostsPage, string>({
+      query: (groupId) => `/groups/${groupId}/posts`,
+      providesTags: (_result, _error, groupId) => [{ type: 'GroupPosts', id: groupId }],
+      async onCacheEntryAdded(groupId, { updateCachedData, cacheDataLoaded, cacheEntryRemoved }) {
+        try {
+          await cacheDataLoaded
+        } catch {
+          return
+        }
+        const socket = getSocket()
+        if (!socket) {
+          await cacheEntryRemoved
+          return
+        }
+        function onNew(payload: { groupId: string; post: GroupPostEntry }) {
+          if (payload.groupId !== groupId) return
+          updateCachedData((draft) => {
+            draft.posts.unshift(payload.post)
+          })
+        }
+        function onDeleted(payload: { groupId: string; postId: string }) {
+          if (payload.groupId !== groupId) return
+          updateCachedData((draft) => {
+            draft.posts = draft.posts.filter((p) => p.id !== payload.postId)
+          })
+        }
+        function onLike(payload: { groupId: string; postId: string }) {
+          if (payload.groupId !== groupId) return
+          updateCachedData((draft) => {
+            const post = draft.posts.find((p) => p.id === payload.postId)
+            if (post) post.likeCount += 1
+          })
+        }
+        function onComment(payload: { groupId: string; postId: string }) {
+          if (payload.groupId !== groupId) return
+          updateCachedData((draft) => {
+            const post = draft.posts.find((p) => p.id === payload.postId)
+            if (post) post.commentCount += 1
+          })
+        }
+        socket.on('groupPost:new', onNew)
+        socket.on('groupPost:deleted', onDeleted)
+        socket.on('groupPost:like', onLike)
+        socket.on('groupPost:comment', onComment)
+        await cacheEntryRemoved
+        socket.off('groupPost:new', onNew)
+        socket.off('groupPost:deleted', onDeleted)
+        socket.off('groupPost:like', onLike)
+        socket.off('groupPost:comment', onComment)
+      },
+    }),
+    // Только для догрузки старых записей кнопкой «Показать ещё» — не реактивна
+    getOlderGroupPosts: builder.query<GroupPostsPage, { groupId: string; cursor: string }>({
+      query: ({ groupId, cursor }) => `/groups/${groupId}/posts?cursor=${cursor}`,
+    }),
+    createGroupPost: builder.mutation<{ post: GroupPostEntry }, { groupId: string; body: string }>({
+      query: ({ groupId, body }) => ({ url: `/groups/${groupId}/posts`, method: 'POST', body: { body } }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+    deleteGroupPost: builder.mutation<{ ok: boolean }, { groupId: string; postId: string }>({
+      query: ({ groupId, postId }) => ({ url: `/groups/${groupId}/posts/${postId}`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+    likeGroupPost: builder.mutation<{ ok: boolean }, { groupId: string; postId: string }>({
+      query: ({ groupId, postId }) => ({ url: `/groups/${groupId}/posts/${postId}/like`, method: 'POST' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+    unlikeGroupPost: builder.mutation<{ ok: boolean }, { groupId: string; postId: string }>({
+      query: ({ groupId, postId }) => ({ url: `/groups/${groupId}/posts/${postId}/like`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+
+    getGroupComments: builder.query<GroupCommentsPage, { groupId: string; postId: string; cursor?: string }>({
+      query: ({ groupId, postId, cursor }) => {
+        const search = new URLSearchParams()
+        if (cursor) search.set('cursor', cursor)
+        const qs = search.toString()
+        return `/groups/${groupId}/posts/${postId}/comments${qs ? `?${qs}` : ''}`
+      },
+    }),
+    createGroupComment: builder.mutation<{ comment: GroupCommentEntry }, { groupId: string; postId: string; body: string }>({
+      query: ({ groupId, postId, body }) => ({ url: `/groups/${groupId}/posts/${postId}/comments`, method: 'POST', body: { body } }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+    deleteGroupComment: builder.mutation<{ ok: boolean }, { groupId: string; postId: string; commentId: string }>({
+      query: ({ groupId, postId, commentId }) => ({ url: `/groups/${groupId}/posts/${postId}/comments/${commentId}`, method: 'DELETE' }),
+      invalidatesTags: (_result, _error, { groupId }) => [{ type: 'GroupPosts', id: groupId }],
+    }),
+
+    // Поиск — People + Group разом. Не реактивна: дебаунс + локальный state
+    // на клиенте (тот же паттерн, что GroupsTab/FriendsTab), а не кэш RTK Query
+    getSearch: builder.query<SearchResults, { q: string; usersCursor?: string; groupsCursor?: string }>({
+      query: ({ q, usersCursor, groupsCursor }) => {
+        const search = new URLSearchParams({ q })
+        if (usersCursor) search.set('usersCursor', usersCursor)
+        if (groupsCursor) search.set('groupsCursor', groupsCursor)
+        return `/search?${search.toString()}`
+      },
+    }),
+
+    fileReport: builder.mutation<{ report: ReportEntry }, FileReportPayload>({
+      query: (body) => ({ url: '/reports', method: 'POST', body }),
+    }),
+    getMyReports: builder.query<ReportsPage, { cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/reports/mine${qs ? `?${qs}` : ''}`
+      },
+    }),
+
+    /*
+      Колокольчик уведомлений. getUnreadNotificationCount — реактивна
+      (бейдж в шапке), инвалидируется по сокет-событию notification:new
+      (см. useSocket.ts) — отдельного поллинга не заводим.
+    */
+    getUnreadNotificationCount: builder.query<{ count: number }, void>({
+      query: () => '/notifications/unread-count',
+      providesTags: ['Notifications'],
+    }),
+    getNotifications: builder.query<NotificationsPage, { cursor?: string } | void>({
+      query: (params) => {
+        const search = new URLSearchParams()
+        if (params?.cursor) search.set('cursor', params.cursor)
+        const qs = search.toString()
+        return `/notifications${qs ? `?${qs}` : ''}`
+      },
+    }),
+    markNotificationRead: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/notifications/${id}/read`, method: 'POST' }),
+      invalidatesTags: ['Notifications'],
+    }),
+    markAllNotificationsRead: builder.mutation<{ ok: boolean }, void>({
+      query: () => ({ url: '/notifications/read-all', method: 'POST' }),
+      invalidatesTags: ['Notifications'],
+    }),
+
   }),
 })
 
@@ -224,4 +633,57 @@ export const {
   useDemoteUserMutation,
   useGetAuditLogQuery,
   useLazyGetAuditLogQuery,
+  useGetFriendsQuery,
+  useLazyGetFriendsQuery,
+  useRemoveFriendMutation,
+  useGetFriendRequestsQuery,
+  useLazyGetFriendRequestsQuery,
+  useSendFriendRequestMutation,
+  useAcceptFriendRequestMutation,
+  useDeclineFriendRequestMutation,
+  useCancelFriendRequestMutation,
+  useGetBlocksQuery,
+  useLazyGetBlocksQuery,
+  useBlockUserMutation,
+  useUnblockUserMutation,
+  useGetConversationsQuery,
+  useStartDirectConversationMutation,
+  useGetMessagesQuery,
+  useLazyGetOlderMessagesQuery,
+  useSendMessageMutation,
+  useMarkConversationReadMutation,
+  useGetGroupsQuery,
+  useLazyGetGroupsQuery,
+  useGetGroupQuery,
+  useCreateGroupMutation,
+  useUpdateGroupMutation,
+  useDeleteGroupMutation,
+  useLazyGetGroupMembersQuery,
+  useJoinGroupMutation,
+  useLeaveGroupMutation,
+  useLazyGetGroupRequestsQuery,
+  useApproveGroupRequestMutation,
+  useRejectGroupRequestMutation,
+  usePromoteGroupMemberMutation,
+  useDemoteGroupMemberMutation,
+  useRemoveGroupMemberMutation,
+  useGetGroupPostsQuery,
+  useLazyGetOlderGroupPostsQuery,
+  useCreateGroupPostMutation,
+  useDeleteGroupPostMutation,
+  useLikeGroupPostMutation,
+  useUnlikeGroupPostMutation,
+  useLazyGetGroupCommentsQuery,
+  useCreateGroupCommentMutation,
+  useDeleteGroupCommentMutation,
+  useLazyGetSearchQuery,
+  useLazyGetAdminReportsQuery,
+  useResolveReportMutation,
+  useRejectReportMutation,
+  useFileReportMutation,
+  useLazyGetMyReportsQuery,
+  useGetUnreadNotificationCountQuery,
+  useLazyGetNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
 } = backendApi

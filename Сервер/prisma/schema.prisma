@@ -57,6 +57,63 @@ enum Role {
   CREATOR
 }
 
+enum MessagingPrivacy {
+  EVERYONE
+  FRIENDS_ONLY
+  NOBODY
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum GroupPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum GroupMemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+// PENDING — заявка на вступление в PRIVATE-группу, ждёт решения владельца/модератора
+enum GroupMemberStatus {
+  PENDING
+  MEMBER
+}
+
+enum ReportCategory {
+  HARASSMENT
+  SPAM
+  SCAM
+  INAPPROPRIATE_PROFILE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
+enum NotificationType {
+  FRIEND_REQUEST_RECEIVED
+  FRIEND_REQUEST_ACCEPTED
+  GROUP_JOIN_REQUEST
+  GROUP_JOIN_APPROVED
+  GROUP_POST_COMMENT
+  GROUP_POST_LIKE
+  REPORT_RESOLVED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -104,6 +161,12 @@ model User {
   // (тогда клиент падает на прежнее поведение — Dev)
   defaultSection String?
 
+  // Кто может написать первым, если ещё не в друзьях. Друзей это не
+  // ограничивает — им можно писать всегда, независимо от значения здесь
+  // (см. lib/messaging.ts). Только UI-подсказка на клиенте не опирается —
+  // сервер перепроверяет на каждой отправке сообщения/заявки
+  messagingPrivacy MessagingPrivacy @default(EVERYONE)
+
   role Role @default(USER)
 
   // Бан: bannedAt = null -> не забанен. bannedUntil = null при заданном
@@ -123,6 +186,26 @@ model User {
   customExercises   Exercise[]              @relation("ExerciseCreator")
   steamAchievements SteamGameAchievements[]
   auditActions      AdminAuditLog[]         @relation("AuditActor")
+
+  friendshipsSent     Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived Friendship[] @relation("FriendshipAddressee")
+  blocksMade          Block[]      @relation("BlockBlocker")
+  blocksAgainst       Block[]      @relation("BlockBlocked")
+
+  conversationParticipations ConversationParticipant[]
+  sentMessages               Message[]
+
+  ownedGroups      Group[]            @relation("GroupOwner")
+  groupMemberships GroupMember[]
+  groupPosts       GroupPost[]        @relation("GroupPostAuthor")
+  groupComments    GroupPostComment[] @relation("GroupCommentAuthor")
+  groupPostLikes   GroupPostLike[]
+
+  reportsFiled    Report[] @relation("ReportReporter")
+  reportsAgainst  Report[] @relation("ReportReported")
+  reportsResolved Report[] @relation("ReportResolver")
+
+  notifications Notification[]
 }
 
 // Журнал действий администраторов — только на запись, эндпоинта на
@@ -274,4 +357,225 @@ model WorkoutSet {
   weightKg   Float
 
   @@index([workoutId])
+}
+
+// Блокировка — глушит сообщения и заявки в друзья в обе стороны (см.
+// lib/blocklist.ts, lib/messaging.ts), скрывает профили друг у друга из
+// поиска. Разблокировка — просто DELETE строки, отдельного статуса нет
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// Одна строка на пару людей, направление — requester/addressee. При
+// отклонении или отмене заявки строка удаляется целиком (история заявок в
+// друзья не хранится — не то же самое, что AdminAuditLog, там своя причина
+// хранить всё). Взаимная заявка (B->A, пока A->B ещё PENDING) — обрабатывается
+// в routes/friends.ts как мгновенный ACCEPTED существующей строки, а не
+// вторая строка
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  // Единственное сообщение, которое не-друг может отправить получателю с
+  // messagingPrivacy = FRIENDS_ONLY — прикладывается прямо к заявке, а не
+  // отправляется как обычное сообщение в переписке (см. lib/messaging.ts)
+  requestMessage String?
+  createdAt      DateTime         @default(now())
+  respondedAt    DateTime?
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+}
+
+// Личные и групповые переписки — одна модель. Групповая (type=GROUP) —
+// groupId заполнен, участники синхронизированы с GroupMember. Личная
+// (type=DIRECT) — создаётся по требованию, directKey не даёт создать вторую
+// переписку между теми же двумя людьми
+model Conversation {
+  id        String           @id @default(cuid())
+  type      ConversationType
+  groupId   String?          @unique
+  group     Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Только для DIRECT: "меньшийId:большийId" — находит единственную переписку
+  // между двумя людьми без сканирования участников на каждый старт чата
+  directKey String?          @unique
+  createdAt DateTime         @default(now())
+  // Денормализовано с Message.createdAt последнего сообщения — сортировка
+  // списка переписок по последней активности без агрегирующего запроса
+  // (Prisma не умеет orderBy по _max связанного поля, только по _count)
+  lastMessageAt DateTime     @default(now())
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Для счётчика непрочитанного — сообщения после этой отметки и есть
+  // непрочитанные, отдельной таблицы "прочитано на сообщение" не заводим
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  // Снэпшот на случай удаления автора — тот же приём, что actorUsername/
+  // targetUsername в AdminAuditLog
+  senderUsername String
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  avatar      String?
+  privacy     GroupPrivacy @default(PUBLIC)
+  ownerId     String
+  // Restrict, не Cascade — удаление владельца не должно молча снести группу.
+  // Даёт P2003 при DELETE /admin/users/:id, перехватывается тем же паттерном,
+  // что уже есть там для Exercise (см. routes/admin.ts)
+  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt   DateTime     @default(now())
+
+  members      GroupMember[]
+  conversation Conversation?
+  posts        GroupPost[]
+
+  @@index([ownerId])
+}
+
+model GroupMember {
+  id       String            @id @default(cuid())
+  groupId  String
+  group    Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     GroupMemberRole   @default(MEMBER)
+  status   GroupMemberStatus @default(MEMBER)
+  joinedAt DateTime          @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([groupId, status])
+}
+
+model GroupPost {
+  id             String   @id @default(cuid())
+  groupId        String
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  authorId       String?
+  author         User?    @relation("GroupPostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorUsername String
+  body           String
+  createdAt      DateTime @default(now())
+
+  comments GroupPostComment[]
+  likes    GroupPostLike[]
+
+  @@index([groupId, createdAt])
+}
+
+model GroupPostComment {
+  id             String    @id @default(cuid())
+  postId         String
+  post           GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId       String?
+  author         User?     @relation("GroupCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorUsername String
+  body           String
+  createdAt      DateTime  @default(now())
+
+  @@index([postId, createdAt])
+}
+
+model GroupPostLike {
+  id        String    @id @default(cuid())
+  postId    String
+  post      GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// Тот же приём, что AdminAuditLog: nullable FK (onDelete SetNull) + username-
+// снэпшот у репортёра, цели и администратора-резолвера — запись остаётся
+// читаемой, даже если чей-то аккаунт потом удалили. Решение одновременно
+// пишется и сюда (видно автору жалобы через GET /reports/mine), и в
+// AdminAuditLog через существующий logAdminAction (видно Создателю в общем
+// журнале) — см. routes/admin.ts
+model Report {
+  id               String         @id @default(cuid())
+  reporterId       String?
+  reporter         User?          @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  reporterUsername String
+  reportedId       String?
+  reported         User?          @relation("ReportReported", fields: [reportedId], references: [id], onDelete: SetNull)
+  reportedUsername String
+  category         ReportCategory
+  description      String
+
+  status ReportStatus @default(PENDING)
+
+  resolvedByUserId   String?
+  resolvedBy         User?     @relation("ReportResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  resolvedByUsername String?
+  // NO_ACTION | WARNING | BAN_TEMPORARY | BAN_PERMANENT | OTHER
+  resolutionAction String?
+  resolutionNote   String?
+  resolvedAt       DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([reportedId])
+}
+
+// Только для точечных событий (заявки, вступление в группу, жалоба решена,
+// активность на стене) — новое сообщение в чате НЕ создаёт запись здесь,
+// непрочитанное там уже считается через ConversationParticipant.lastReadAt
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   NotificationType
+  // id заявки/группы/поста и т.п. — чтобы клик по уведомлению вёл сразу куда нужно
+  payload   Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

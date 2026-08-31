@@ -9,6 +9,14 @@ import { requireRole } from '../middleware/requireRole'
 import { asyncHandler } from '../lib/asyncHandler'
 import { HttpError } from '../middleware/errorHandler'
 import { logAdminAction } from '../lib/audit'
+import { notify } from '../lib/notifications'
+import { serializeReport } from './reports'
+import type { ReportStatus } from '@prisma/client'
+
+// Не Prisma-enum (см. schema.prisma — resolutionAction простой String,
+// как и AdminAction в lib/audit.ts), проверяется вручную здесь
+const RESOLUTION_ACTIONS = ['NO_ACTION', 'WARNING', 'BAN_TEMPORARY', 'BAN_PERMANENT', 'OTHER'] as const
+type ResolutionAction = (typeof RESOLUTION_ACTIONS)[number]
 
 const router = Router()
 router.use(authenticate, requireRole('ADMIN', 'CREATOR'))
@@ -180,6 +188,15 @@ router.delete(
       await prisma.user.delete({ where: { id: target.id } })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
+        // err.meta здесь не называет конкретное поле (проверено эмпирически:
+        // {modelName: "User", constraint: null}) — Group.ownerId (Restrict,
+        // см. schema.prisma) добавился второй возможной причиной P2003,
+        // помимо давнего Exercise.createdByUserId, и отличить их по самой
+        // ошибке нельзя. Проверяем прямым запросом, а не гадаем по meta.
+        const ownedGroups = await prisma.group.count({ where: { ownerId: target.id } })
+        if (ownedGroups > 0) {
+          throw new HttpError(409, 'Нельзя удалить — пользователь владеет группами. Сначала передайте владение или удалите группы')
+        }
         throw new HttpError(409, 'Нельзя удалить — у пользователя есть упражнения, использованные в чужих тренировках')
       }
       throw err
@@ -243,6 +260,126 @@ router.get(
       entries: page,
       nextCursor: hasMore ? page[page.length - 1].id : null,
     })
+  })
+)
+
+// GET /admin/reports?status=&cursor= — очередь жалоб, доступна любому ADMIN/CREATOR
+// (кто именно решил — видно в аудит-логе, он уже CREATOR-only)
+router.get(
+  '/reports',
+  asyncHandler(async (req, res) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined
+    const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100)
+
+    const validStatus = status && ['PENDING', 'RESOLVED', 'REJECTED'].includes(status) ? (status as ReportStatus) : undefined
+
+    const rows = await prisma.report.findMany({
+      where: validStatus ? { status: validStatus } : {},
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    })
+
+    const hasMore = rows.length > limit
+    const page = hasMore ? rows.slice(0, limit) : rows
+    res.json({ reports: page.map(serializeReport), nextCursor: hasMore ? page[page.length - 1].id : null })
+  })
+)
+
+// POST /admin/reports/:id/resolve { action, note, banDays? } — «принята и выполнена»:
+// action описывает, что именно было сделано, note — почему; при BAN_* реально
+// применяет бан, переиспользуя ту же иерархию защиты, что и прямой /users/:id/ban
+router.post(
+  '/reports/:id/resolve',
+  asyncHandler(async (req, res) => {
+    const actor = await loadActor(req)
+    const report = await prisma.report.findUnique({ where: { id: req.params.id } })
+    if (!report) throw new HttpError(404, 'Жалоба не найдена')
+    if (report.status !== 'PENDING') throw new HttpError(409, 'Жалоба уже рассмотрена')
+
+    const { action, note, banDays } = req.body as { action?: string; note?: string; banDays?: number }
+    if (!action || !RESOLUTION_ACTIONS.includes(action as ResolutionAction)) {
+      throw new HttpError(400, 'Некорректное действие')
+    }
+    if (!note || typeof note !== 'string' || !note.trim()) {
+      throw new HttpError(400, 'Опишите, что было сделано и почему')
+    }
+    const trimmedNote = note.trim()
+
+    if (action === 'BAN_TEMPORARY' || action === 'BAN_PERMANENT') {
+      if (!report.reportedId) throw new HttpError(400, 'Аккаунт нарушителя уже удалён — бан невозможен')
+      const target = await loadTarget(report.reportedId)
+      assertCanModerate(actor, target)
+
+      let bannedUntil: Date | null = null
+      if (action === 'BAN_TEMPORARY') {
+        if (!Number.isInteger(banDays) || banDays! < 1 || banDays! > 3650) {
+          throw new HttpError(400, 'Укажите срок бана от 1 до 3650 дней')
+        }
+        bannedUntil = new Date(Date.now() + banDays! * 24 * 60 * 60 * 1000)
+      }
+
+      await prisma.user.update({
+        where: { id: target.id },
+        data: { bannedAt: new Date(), bannedUntil, banReason: trimmedNote, bannedByUserId: actor.id },
+      })
+      await logAdminAction(actor, target, 'BAN', { days: action === 'BAN_TEMPORARY' ? banDays : null, reason: trimmedNote, viaReportId: report.id })
+    }
+
+    const updated = await prisma.report.update({
+      where: { id: report.id },
+      data: {
+        status: 'RESOLVED',
+        resolvedByUserId: actor.id,
+        resolvedByUsername: actor.username,
+        resolutionAction: action,
+        resolutionNote: trimmedNote,
+        resolvedAt: new Date(),
+      },
+    })
+
+    await logAdminAction(actor, { id: report.reportedId, username: report.reportedUsername }, 'RESOLVE_REPORT', {
+      reportId: report.id, action, note: trimmedNote,
+    })
+
+    if (report.reporterId) {
+      await notify(report.reporterId, 'REPORT_RESOLVED', { reportId: report.id, status: 'RESOLVED', action, note: trimmedNote })
+    }
+
+    res.json({ report: serializeReport(updated) })
+  })
+)
+
+// POST /admin/reports/:id/reject { note } — «отклонена и по какой причине»
+router.post(
+  '/reports/:id/reject',
+  asyncHandler(async (req, res) => {
+    const actor = await loadActor(req)
+    const report = await prisma.report.findUnique({ where: { id: req.params.id } })
+    if (!report) throw new HttpError(404, 'Жалоба не найдена')
+    if (report.status !== 'PENDING') throw new HttpError(409, 'Жалоба уже рассмотрена')
+
+    const { note } = req.body as { note?: string }
+    if (!note || typeof note !== 'string' || !note.trim()) {
+      throw new HttpError(400, 'Укажите причину отклонения')
+    }
+    const trimmedNote = note.trim()
+
+    const updated = await prisma.report.update({
+      where: { id: report.id },
+      data: { status: 'REJECTED', resolvedByUserId: actor.id, resolvedByUsername: actor.username, resolutionNote: trimmedNote, resolvedAt: new Date() },
+    })
+
+    await logAdminAction(actor, { id: report.reportedId, username: report.reportedUsername }, 'REJECT_REPORT', {
+      reportId: report.id, note: trimmedNote,
+    })
+
+    if (report.reporterId) {
+      await notify(report.reporterId, 'REPORT_RESOLVED', { reportId: report.id, status: 'REJECTED', note: trimmedNote })
+    }
+
+    res.json({ report: serializeReport(updated) })
   })
 )
 

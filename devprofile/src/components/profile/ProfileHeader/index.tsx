@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useAppSelector } from '../../../hooks/redux'
 import { xpProgressPercent } from '../../../config/constants'
 import { fadeUpVariants } from '../../../hooks/useAnimatedMount'
+import { Avatar } from '../../shared/Avatar'
 
 export function ProfileHeader() {
   const user = useAppSelector((state) => state.auth.user)
@@ -39,33 +40,14 @@ export function ProfileHeader() {
           initial="hidden"
           animate="visible"
         >
-          <div
-            className="relative overflow-hidden flex items-center justify-center"
-            style={{
-              width: 84,
-              height: 84,
-              border: '2px solid var(--dp-border-light)',
-              borderRadius: 6,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-              background: 'var(--dp-bg-card)',
-            }}
-          >
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.displayName}
-                className="w-full h-full object-cover"
-                style={{ display: 'block' }}
-              />
-            ) : (
-              <span
-                className="text-3xl font-bold"
-                style={{ color: 'var(--dp-text-secondary)' }}
-              >
-                {user.displayName.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-          </div>
+          <Avatar
+            src={user.avatar}
+            name={user.displayName}
+            size={84}
+            borderWidth={2}
+            borderColor="var(--dp-border-light)"
+            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}
+          />
 
           {/* Статус-точка */}
           <StatusDot status={status} />

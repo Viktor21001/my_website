@@ -32,7 +32,12 @@ function isPanelColumnLayout(value: unknown): boolean {
 router.patch(
   '/me',
   asyncHandler(async (req, res) => {
-    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background, panelLayout, defaultSection } = req.body ?? {}
+    const { displayName, avatar, bio, location, timezone, exerciseLibraryName, githubUsername, steamId, steamApiKey, favoriteSteamAppIds, background, panelLayout, defaultSection, messagingPrivacy } = req.body ?? {}
+
+    const MESSAGING_PRIVACY_VALUES = ['EVERYONE', 'FRIENDS_ONLY', 'NOBODY']
+    if (messagingPrivacy !== undefined && !MESSAGING_PRIVACY_VALUES.includes(messagingPrivacy)) {
+      throw new HttpError(400, 'Некорректное значение приватности сообщений')
+    }
 
     if (displayName !== undefined && (typeof displayName !== 'string' || displayName.trim() === '')) {
       throw new HttpError(400, 'Имя не может быть пустым')
@@ -79,6 +84,7 @@ router.patch(
     // как и background пересобирается целиком перед отправкой
     if (panelLayout !== undefined) data.panelLayout = panelLayout
     if (defaultSection !== undefined) data.defaultSection = defaultSection || null
+    if (messagingPrivacy !== undefined) data.messagingPrivacy = messagingPrivacy
 
     if (background !== undefined) {
       const bg = background as BackgroundInput

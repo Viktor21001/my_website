@@ -31,6 +31,8 @@ export type AdminAction =
   | 'RESET_PASSWORD'
   | 'PROMOTE_ADMIN'
   | 'DEMOTE_ADMIN'
+  | 'RESOLVE_REPORT'
+  | 'REJECT_REPORT'
 
 export interface AuditLogEntry {
   id: string

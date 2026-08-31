@@ -17,15 +17,17 @@ import { useModalHistoryClose } from '../../../hooks/useModalHistoryClose'
 import {
   useLazyGetAdminUsersQuery, useUnbanUserMutation, useResetUserPasswordMutation,
   useDeleteAdminUserMutation, usePromoteUserMutation, useDemoteUserMutation,
-  useLazyGetAuditLogQuery,
+  useLazyGetAuditLogQuery, useLazyGetAdminReportsQuery, useResolveReportMutation, useRejectReportMutation,
 } from '../../../store/api/backendApi'
 import { extractApiError } from '../../../utils/apiError'
 import { slideUpVariants } from '../../../hooks/useAnimatedMount'
 import { BanDialog } from '../BanDialog'
+import { Avatar } from '../../shared/Avatar'
 import type { AuthUser } from '../../../types/auth'
 import type { AdminUserRow, AuditLogEntry, AdminAction } from '../../../types/admin'
+import type { ReportEntry, ReportResolutionAction } from '../../../types/reports'
 
-type Tab = 'users' | 'audit'
+type Tab = 'users' | 'reports' | 'audit'
 
 export function AdminPanel() {
   const dispatch = useAppDispatch()
@@ -86,13 +88,16 @@ export function AdminPanel() {
 
             <div className="flex items-center gap-2 px-5 pt-3">
               <TabButton active={tab === 'users'} onClick={() => setTab('users')}>Пользователи</TabButton>
+              <TabButton active={tab === 'reports'} onClick={() => setTab('reports')}>Жалобы</TabButton>
               {isCreator && (
                 <TabButton active={tab === 'audit'} onClick={() => setTab('audit')}>Журнал действий</TabButton>
               )}
             </div>
 
             <div className="p-5">
-              {tab === 'users' ? <UsersTab currentUser={user} /> : <AuditLogTab />}
+              {tab === 'users' && <UsersTab currentUser={user} />}
+              {tab === 'reports' && <ReportsTab />}
+              {tab === 'audit' && <AuditLogTab />}
             </div>
           </motion.div>
         </>
@@ -325,18 +330,7 @@ function UserRow({
   return (
     <div className="p-2" style={{ background: 'var(--dp-bg-card)', border: '1px solid var(--dp-border)', borderRadius: 6 }}>
       <div className="flex items-center gap-3">
-        <div
-          className="shrink-0 overflow-hidden flex items-center justify-center"
-          style={{ width: 36, height: 36, borderRadius: 6, border: '1px solid var(--dp-border)', background: 'var(--dp-bg-panel)' }}
-        >
-          {row.avatar ? (
-            <img src={row.avatar} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-xs font-bold" style={{ color: 'var(--dp-text-secondary)' }}>
-              {row.displayName.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-        </div>
+        <Avatar src={row.avatar} name={row.displayName} size={36} background="var(--dp-bg-panel)" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -403,6 +397,8 @@ const AUDIT_ACTION_LABEL: Record<AdminAction, string> = {
   RESET_PASSWORD: 'сбросил(а) пароль',
   PROMOTE_ADMIN: 'выдал(а) права admin',
   DEMOTE_ADMIN: 'забрал(а) права admin',
+  RESOLVE_REPORT: 'рассмотрел(а) жалобу на',
+  REJECT_REPORT: 'отклонил(а) жалобу на',
 }
 
 function formatAuditDetails(entry: AuditLogEntry): string | null {
@@ -413,7 +409,230 @@ function formatAuditDetails(entry: AuditLogEntry): string | null {
     const reason = d.reason as string | undefined
     return `${days ? `на ${days} дн.` : 'навсегда'}${reason ? ` — ${reason}` : ''}`
   }
+  if (entry.action === 'RESOLVE_REPORT' || entry.action === 'REJECT_REPORT') {
+    const action = d.action as string | undefined
+    const note = d.note as string | undefined
+    return `${action ? RESOLUTION_ACTION_LABEL[action] ?? action : ''}${note ? ` — ${note}` : ''}`
+  }
   return null
+}
+
+const RESOLUTION_ACTION_LABEL: Record<string, string> = {
+  NO_ACTION: 'без действий',
+  WARNING: 'предупреждение',
+  BAN_TEMPORARY: 'временный бан',
+  BAN_PERMANENT: 'постоянный бан',
+  OTHER: 'другое действие',
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  HARASSMENT: 'Оскорбления / преследование',
+  SPAM: 'Спам',
+  SCAM: 'Мошенничество',
+  INAPPROPRIATE_PROFILE: 'Неприемлемый профиль',
+  OTHER: 'Другое',
+}
+
+type ReportStatusFilter = 'PENDING' | 'RESOLVED' | 'REJECTED' | 'ALL'
+
+function ReportsTab() {
+  const [statusFilter, setStatusFilter] = useState<ReportStatusFilter>('PENDING')
+  const [rows, setRows] = useState<ReportEntry[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [fetchReports, { isFetching }] = useLazyGetAdminReportsQuery()
+
+  useEffect(() => {
+    let cancelled = false
+    fetchReports(statusFilter === 'ALL' ? {} : { status: statusFilter })
+      .unwrap()
+      .then((result) => {
+        if (cancelled) return
+        setRows(result.reports)
+        setNextCursor(result.nextCursor)
+        setLoadError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setLoadError(extractApiError(err, 'Не удалось загрузить жалобы'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [statusFilter, fetchReports])
+
+  function loadMore() {
+    if (!nextCursor) return
+    fetchReports({ ...(statusFilter === 'ALL' ? {} : { status: statusFilter }), cursor: nextCursor })
+      .unwrap()
+      .then((result) => {
+        setRows((prev) => [...prev, ...result.reports])
+        setNextCursor(result.nextCursor)
+      })
+      .catch((err) => setLoadError(extractApiError(err, 'Не удалось загрузить жалобы')))
+  }
+
+  function refresh() {
+    fetchReports(statusFilter === 'ALL' ? {} : { status: statusFilter })
+      .unwrap()
+      .then((result) => {
+        setRows(result.reports)
+        setNextCursor(result.nextCursor)
+      })
+      .catch((err) => setLoadError(extractApiError(err, 'Не удалось обновить жалобы')))
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-1.5">
+        {(['PENDING', 'RESOLVED', 'REJECTED', 'ALL'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className="text-xs px-2.5 py-1 rounded-full"
+            style={{
+              background: statusFilter === s ? 'var(--dp-accent)' : 'transparent',
+              color: statusFilter === s ? '#05141f' : 'var(--dp-text-secondary)',
+              border: `1px solid ${statusFilter === s ? 'var(--dp-accent)' : 'var(--dp-border)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            {s === 'PENDING' ? 'Ожидают' : s === 'RESOLVED' ? 'Решены' : s === 'REJECTED' ? 'Отклонены' : 'Все'}
+          </button>
+        ))}
+      </div>
+
+      {loadError && <div className="dp-error">{loadError}</div>}
+
+      <div className="flex flex-col gap-2">
+        {rows.map((r) => (
+          <ReportRow key={r.id} report={r} onChanged={refresh} />
+        ))}
+        {rows.length === 0 && !isFetching && (
+          <div className="text-xs text-center py-4" style={{ color: 'var(--dp-text-muted)' }}>Пусто</div>
+        )}
+      </div>
+
+      {nextCursor && (
+        <button
+          onClick={loadMore}
+          disabled={isFetching}
+          className="w-full text-xs py-2"
+          style={{ background: 'none', border: 'none', borderTop: '1px solid var(--dp-border)', cursor: 'pointer', color: 'var(--dp-text-secondary)' }}
+        >
+          {isFetching ? 'Загружаем…' : 'Показать ещё'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ReportRow({ report, onChanged }: { report: ReportEntry; onChanged: () => void }) {
+  const [resolving, setResolving] = useState(false)
+  const [action, setAction] = useState<ReportResolutionAction>('WARNING')
+  const [banDays, setBanDays] = useState('7')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const [resolveReport, { isLoading: resolvingLoading }] = useResolveReportMutation()
+  const [rejectReport, { isLoading: rejectingLoading }] = useRejectReportMutation()
+
+  async function handleResolve() {
+    if (!note.trim()) {
+      setError('Опишите, что было сделано и почему')
+      return
+    }
+    setError(null)
+    try {
+      await resolveReport({
+        id: report.id, action, note: note.trim(),
+        banDays: action === 'BAN_TEMPORARY' ? Number(banDays) : undefined,
+      }).unwrap()
+      onChanged()
+    } catch (err) {
+      setError(extractApiError(err, 'Не удалось разрешить жалобу'))
+    }
+  }
+
+  async function handleReject() {
+    if (!note.trim()) {
+      setError('Укажите причину отклонения')
+      return
+    }
+    setError(null)
+    try {
+      await rejectReport({ id: report.id, note: note.trim() }).unwrap()
+      onChanged()
+    } catch (err) {
+      setError(extractApiError(err, 'Не удалось отклонить жалобу'))
+    }
+  }
+
+  return (
+    <div className="p-2 text-xs" style={{ background: 'var(--dp-bg-card)', border: '1px solid var(--dp-border)', borderRadius: 6 }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span style={{ color: 'var(--dp-text-white)' }}>
+          <b>@{report.reporterUsername}</b> → <b>@{report.reportedUsername}</b>
+        </span>
+        <span style={{ color: 'var(--dp-text-muted)' }}>{CATEGORY_LABEL[report.category] ?? report.category}</span>
+      </div>
+      <div className="mt-1" style={{ color: 'var(--dp-text-secondary)' }}>{report.description}</div>
+      <div className="mt-1 text-[10px]" style={{ color: 'var(--dp-text-muted)' }}>{new Date(report.createdAt).toLocaleString('ru-RU')}</div>
+
+      {report.status === 'PENDING' && (
+        <div className="mt-2">
+          {!resolving ? (
+            <button onClick={() => setResolving(true)} className="dp-btn-ghost text-xs">Рассмотреть</button>
+          ) : (
+            <div className="flex flex-col gap-1.5 mt-1 p-2" style={{ background: 'var(--dp-bg-panel)', border: '1px solid var(--dp-border)', borderRadius: 6 }}>
+              <select className="dp-input text-xs" value={action} onChange={(e) => setAction(e.target.value as ReportResolutionAction)}>
+                <option value="NO_ACTION">Без действий</option>
+                <option value="WARNING">Предупреждение</option>
+                <option value="BAN_TEMPORARY">Временный бан</option>
+                <option value="BAN_PERMANENT">Постоянный бан</option>
+                <option value="OTHER">Другое</option>
+              </select>
+              {action === 'BAN_TEMPORARY' && (
+                <input
+                  type="number" min={1} max={3650} className="dp-input text-xs"
+                  value={banDays} onChange={(e) => setBanDays(e.target.value)}
+                  placeholder="Количество дней"
+                />
+              )}
+              <textarea
+                className="dp-input text-xs" rows={2}
+                value={note} onChange={(e) => setNote(e.target.value)}
+                placeholder="Что сделано и почему (для «Разрешить») / причина отклонения (для «Отклонить»)"
+              />
+              {error && <div className="dp-error">{error}</div>}
+              <div className="flex gap-1.5 justify-end">
+                <button onClick={() => setResolving(false)} className="dp-btn-ghost text-xs">Отмена</button>
+                <button onClick={handleReject} disabled={rejectingLoading} className="dp-btn-ghost text-xs">Отклонить</button>
+                <button onClick={handleResolve} disabled={resolvingLoading} className="dp-btn-primary text-xs">Разрешить</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {report.status !== 'PENDING' && (
+        <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--dp-border)' }}>
+          {report.status === 'RESOLVED' ? (
+            <span style={{ color: 'var(--dp-green)' }}>
+              Разрешена ({RESOLUTION_ACTION_LABEL[report.resolutionAction ?? ''] ?? report.resolutionAction})
+            </span>
+          ) : (
+            <span style={{ color: 'var(--dp-red)' }}>Отклонена</span>
+          )}
+          {report.resolutionNote && <div className="mt-0.5" style={{ color: 'var(--dp-text-secondary)' }}>{report.resolutionNote}</div>}
+          <div className="mt-1 text-[10px]" style={{ color: 'var(--dp-text-muted)' }}>
+            {report.resolvedByUsername && `@${report.resolvedByUsername} · `}
+            {report.resolvedAt && new Date(report.resolvedAt).toLocaleString('ru-RU')}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function AuditLogTab() {

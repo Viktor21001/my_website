@@ -32,6 +32,10 @@ export function serializeUser(user: User) {
     // заново на каждый запрос (см. middleware/authenticate.ts), а не
     // доверяет этому полю из уже выданного ответа
     role: user.role,
+    // Кто может написать первым, если ещё не в друзьях — сам сервер решает
+    // это заново на каждой отправке (см. lib/messaging.ts), клиенту нужно
+    // только чтобы показать текущий выбор в Настройках
+    messagingPrivacy: user.messagingPrivacy,
     background: {
       type: user.backgroundType,
       url: user.backgroundUrl,

@@ -19,15 +19,25 @@ export type AdminAction =
   | 'RESET_PASSWORD'
   | 'PROMOTE_ADMIN'
   | 'DEMOTE_ADMIN'
+  | 'RESOLVE_REPORT'
+  | 'REJECT_REPORT'
 
 interface ActorTarget {
   id: string
   username: string
 }
 
+// Цель может отсутствовать (аккаунт нарушителя из жалобы уже удалён к
+// моменту решения) — targetId у AdminAuditLog не FK намеренно, null тут
+// валиден и честнее выдуманного id
+interface AuditTarget {
+  id: string | null
+  username: string
+}
+
 export function logAdminAction(
   actor: ActorTarget,
-  target: ActorTarget,
+  target: AuditTarget,
   action: AdminAction,
   details?: Record<string, unknown>
 ) {

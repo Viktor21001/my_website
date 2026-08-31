@@ -3,6 +3,11 @@ import type { BackgroundConfig, PanelLayoutPrefs } from './profile'
 
 export type Role = 'USER' | 'ADMIN' | 'CREATOR'
 
+// Кто может написать первым, если ещё не в друзьях (друзей не ограничивает —
+// им можно писать всегда). Сервер перепроверяет это на каждой отправке,
+// см. Сервер/src/lib/messaging.ts
+export type MessagingPrivacy = 'EVERYONE' | 'FRIENDS_ONLY' | 'NOBODY'
+
 export interface AuthUser {
   id: string
   email: string
@@ -29,6 +34,7 @@ export interface AuthUser {
   // Только для показа кнопки «Админ-панель» — сам доступ к admin-эндпоинтам
   // сервер перепроверяет заново на каждый запрос, этому полю не доверяет
   role: Role
+  messagingPrivacy: MessagingPrivacy
 }
 
 // Любое подмножество полей профиля, которые можно поменять в Настройках
@@ -47,6 +53,7 @@ export interface UpdateProfilePayload {
   background?: BackgroundConfig
   panelLayout?: PanelLayoutPrefs
   defaultSection?: string
+  messagingPrivacy?: MessagingPrivacy
 }
 
 export interface ChangePasswordPayload {

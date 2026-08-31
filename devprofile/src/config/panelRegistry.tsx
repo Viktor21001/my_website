@@ -22,6 +22,9 @@ import { GithubStats } from '../components/stats/GithubStats'
 import { SteamStats } from '../components/stats/SteamStats'
 import { SteamAchievements } from '../components/stats/SteamAchievements'
 import { ComingSoon } from '../components/shared/ComingSoon'
+import { FriendsWidget } from '../components/social/FriendsWidget'
+import { ChatsWidget } from '../components/social/ChatsWidget'
+import { GroupsWidget } from '../components/social/GroupsWidget'
 import { FitnessStatsStrip } from '../components/fitness/FitnessStatsStrip'
 import { WorkoutLog } from '../components/fitness/WorkoutLog'
 import { AgeGroupLeaderboard } from '../components/fitness/AgeGroupLeaderboard'
@@ -63,8 +66,8 @@ export const PANEL_REGISTRY: Record<ActiveSection, SectionPanelDefaults> = {
     ],
     right: [
       { id: 'dev-github', node: <GithubStats /> },
-      { id: 'dev-friends', node: <ComingSoon title="Друзья" icon="👥" /> },
-      { id: 'dev-groups', node: <ComingSoon title="Группы" icon="🏠" /> },
+      { id: 'dev-friends', node: <FriendsWidget /> },
+      { id: 'dev-groups', node: <GroupsWidget /> },
     ],
   },
   fitness: {
@@ -80,7 +83,7 @@ export const PANEL_REGISTRY: Record<ActiveSection, SectionPanelDefaults> = {
       { id: 'fit-badges', node: <FitnessBadgesRow /> },
       { id: 'fit-stopwatch', node: <Stopwatch /> },
       { id: 'fit-inbody', node: <InBodyPanel /> },
-      { id: 'fit-chats', node: <ComingSoon title="Чаты" icon="💬" /> },
+      { id: 'fit-chats', node: <ChatsWidget /> },
     ],
   },
   games: {

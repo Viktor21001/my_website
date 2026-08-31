@@ -38,6 +38,15 @@ interface UiState {
   isSettingsOpen: boolean
   isFavoriteGamesPickerOpen: boolean
   isAdminPanelOpen: boolean
+  isSocialHubOpen: boolean
+  // Открытая переписка внутри вкладки "Чаты" SocialHub — в сторе, а не
+  // локальным useState внутри чата, потому что открыть конкретную переписку
+  // нужно и снаружи (кнопка «Написать» на чужой строке в другом компоненте)
+  activeConversationId: string | null
+  // GroupDetail — отдельный оверлей (не вкладка хаба, там ещё вложенные
+  // под-вкладки Стена/Участники/Чат), открывается снаружи (GroupsTab,
+  // GroupsWidget) и закрывает SocialHub, если он был открыт
+  activeGroupId: string | null
   activeSection: ActiveSection
 }
 
@@ -45,6 +54,9 @@ const initialState: UiState = {
   isSettingsOpen: false,
   isFavoriteGamesPickerOpen: false,
   isAdminPanelOpen: false,
+  isSocialHubOpen: false,
+  activeConversationId: null,
+  activeGroupId: null,
   activeSection: loadInitialSection(),
 }
 
@@ -70,6 +82,28 @@ const uiSlice = createSlice({
     setAdminPanelOpen(state, action: PayloadAction<boolean>) {
       state.isAdminPanelOpen = action.payload
     },
+    toggleSocialHub(state) {
+      state.isSocialHubOpen = !state.isSocialHubOpen
+    },
+    setSocialHubOpen(state, action: PayloadAction<boolean>) {
+      state.isSocialHubOpen = action.payload
+    },
+    // Открывает конкретную переписку и сам хаб разом — используется кнопкой
+    // «Написать» вне SocialHub (FriendsTab, лидерборд)
+    openConversation(state, action: PayloadAction<string>) {
+      state.activeConversationId = action.payload
+      state.isSocialHubOpen = true
+    },
+    setActiveConversationId(state, action: PayloadAction<string | null>) {
+      state.activeConversationId = action.payload
+    },
+    openGroup(state, action: PayloadAction<string>) {
+      state.activeGroupId = action.payload
+      state.isSocialHubOpen = false
+    },
+    setActiveGroupId(state, action: PayloadAction<string | null>) {
+      state.activeGroupId = action.payload
+    },
     setActiveSection(state, action: PayloadAction<ActiveSection>) {
       // Во время драга наведение на уже активную вкладку не должно
       // диспатчить лишний раз на каждый кадр — см. AppBoard.onDragOver
@@ -86,6 +120,12 @@ export const {
   setFavoriteGamesPickerOpen,
   toggleAdminPanel,
   setAdminPanelOpen,
+  toggleSocialHub,
+  setSocialHubOpen,
+  openConversation,
+  setActiveConversationId,
+  openGroup,
+  setActiveGroupId,
   setActiveSection,
 } = uiSlice.actions
 export default uiSlice.reducer

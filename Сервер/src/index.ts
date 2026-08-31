@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { createServer } from 'http'
 import express from 'express'
 import cors from 'cors'
 import authRouter from './routes/auth'
@@ -10,7 +11,15 @@ import leaderboardRouter from './routes/leaderboard'
 import usersRouter from './routes/users'
 import steamAchievementsRouter from './routes/steamAchievements'
 import adminRouter from './routes/admin'
+import friendsRouter from './routes/friends'
+import blocksRouter from './routes/blocks'
+import conversationsRouter from './routes/conversations'
+import groupsRouter from './routes/groups'
+import searchRouter from './routes/search'
+import reportsRouter from './routes/reports'
+import notificationsRouter from './routes/notifications'
 import { errorHandler } from './middleware/errorHandler'
+import { initSocket } from './lib/socket'
 
 const app = express()
 
@@ -48,11 +57,23 @@ app.use('/api/leaderboard', leaderboardRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/steam-achievements', steamAchievementsRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api/friends', friendsRouter)
+app.use('/api/blocks', blocksRouter)
+app.use('/api/conversations', conversationsRouter)
+app.use('/api/groups', groupsRouter)
+app.use('/api/search', searchRouter)
+app.use('/api/reports', reportsRouter)
+app.use('/api/notifications', notificationsRouter)
 
 // Последним — errorHandler ловит всё, что бросили asyncHandler-обёртки
 app.use(errorHandler)
 
+// http.createServer(app), а не app.listen напрямую — Socket.IO вешается на
+// тот же HTTP-сервер (второй порт под сокет никому не нужен)
+const server = createServer(app)
+initSocket(server)
+
 const PORT = process.env.PORT ?? 4000
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Сервер запущен: http://127.0.0.1:${PORT}`)
 })
